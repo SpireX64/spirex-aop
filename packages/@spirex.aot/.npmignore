@@ -1,0 +1,12 @@
+# Source files
+src/
+
+# Build configuration
+rollup.config.js
+vitest.config.mjs
+
+# Coverage output
+coverage/
+
+# VCS
+.gitignore

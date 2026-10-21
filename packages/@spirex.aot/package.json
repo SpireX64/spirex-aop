@@ -1,0 +1,54 @@
+{
+    "name": "@spirex/aot",
+    "version": "1.0.0",
+    "description": "",
+    "keywords": ["spirex"],
+    "license": "MIT",
+    "private": false,
+    "sideEffects": false,
+    "author": {
+        "name": "Artem Sobolenkov (SpireX)",
+        "email": "SpireX@outlook.com",
+        "url": "https://github.com/SpireX64"
+    },
+    "homepage": "https://github.com/SpireX64/spirex-aot",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/SpireX64/spirex-aot.git"
+    },
+    "main": "./dist/index.js",
+    "module": "./dist/index.mjs",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "import": {
+                "default": "./dist/index.mjs"
+            },
+            "require": {
+                "default": "./dist/index.cjs"
+            },
+            "default": {
+                "default": "./dist/index.js"
+            }
+        },
+        "./in-memory": {
+            "import": {
+                "default": "./dist/in-memory.mjs"
+            },
+            "require": {
+                "default": "./dist/in-memory.cjs"
+            },
+            "default": {
+                "default": "./dist/in-memory.js"
+            }
+        }
+    },
+    "scripts": {
+        "prepack": "yarn build:release && cp ../../README.md ./README.md && cp ../../LICENSE ./LICENSE",
+        "test": "vitest run --config ./vitest.config.mjs",
+        "test:c": "vitest run --config ./vitest.config.mjs --coverage",
+        "build": "rollup --config --environment NODE_ENV:development",
+        "build:release": "rollup --config --environment NODE_ENV:production",
+        "clean": "rimraf dist coverage"
+    }
+}

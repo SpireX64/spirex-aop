@@ -15,7 +15,7 @@ export default function makeVitestConfig(/** @type {string} */ packageName) {
         coverage: {
             provider: "istanbul",
             reporter: ["text", "lcov", "html"],
-            reportsDirectory: "./coverage",
+            reportsDirectory: "coverage",
         },
         clearMocks: true,
     };
