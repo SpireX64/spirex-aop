@@ -254,3 +254,100 @@ describe('Aspect.apply selector matching', () => {
         expect(wrapped).toBe(instance);
     });
 });
+
+describe('Aspect.apply lifecycle and introspection', () => {
+    test('returns the original object and isWrapped is false when no aspect matches', () => {
+        // Arrange --------------
+        var instance = { foo() {} };
+        var aspect = Aspect.method({ memberName: 'missing' }, { beforeCall: () => {} });
+
+        // Act --------------
+        var result = Aspect.apply(instance, [aspect]);
+
+        // Assert --------------
+        expect(result).toBe(instance);
+        expect(Aspect.isWrapped(result)).is.false;
+    });
+
+    test('returns a wrapped proxy and isWrapped is true when an aspect matches', () => {
+        // Arrange --------------
+        var instance = { foo() {} };
+        var aspect = Aspect.method({ memberName: 'foo' }, { beforeCall: () => {} });
+
+        // Act --------------
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Assert --------------
+        expect(wrapped).not.toBe(instance);
+        expect(Aspect.isWrapped(wrapped)).is.true;
+    });
+
+    test('re-apply on a wrapped object returns the same proxy', () => {
+        // Arrange --------------
+        var instance = { foo() {} };
+        var aspect = Aspect.method({ memberName: 'foo' }, { beforeCall: () => {} });
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        var reapplied = Aspect.apply(wrapped, [aspect]);
+
+        // Assert --------------
+        expect(reapplied).toBe(wrapped);
+    });
+
+    test('re-apply after annotating new members picks up the new matches', () => {
+        // Arrange --------------
+        var Tag = defineAnnotation('Tag');
+        var instance = { foo() {}, bar() {} };
+        var aspectFoo = Aspect.method({ memberName: 'foo' }, { beforeCall: () => {} });
+        var aspectTagged = Aspect.method({ annotations: Tag }, { beforeCall: () => {} });
+        var wrapped = Aspect.apply(instance, [aspectFoo]);
+
+        // Act --------------
+        Aspect.annotate(instance, 'bar', [Tag()]);
+        var updated = Aspect.apply(wrapped, [aspectTagged]);
+
+        // Assert --------------
+        expect(updated).toBe(wrapped);
+        expect(Aspect.getAspects(updated)).toEqual([aspectFoo, aspectTagged]);
+    });
+
+    test('does not add the same aspect instance twice', () => {
+        // Arrange --------------
+        var instance = { foo() {} };
+        var aspect = Aspect.method({ memberName: 'foo' }, { beforeCall: () => {} });
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        var reapplied = Aspect.apply(wrapped, [aspect]);
+
+        // Assert --------------
+        expect(Aspect.getAspects(reapplied)).toEqual([aspect]);
+    });
+
+    test('getAspects returns the applied aspects in apply-list order', () => {
+        // Arrange --------------
+        var instance = { foo() {} };
+        var first = Aspect.method({ memberName: 'foo' }, { beforeCall: () => {} });
+        var second = Aspect.method({ memberName: /fo/ }, { afterCall: () => {} });
+
+        // Act --------------
+        var wrapped = Aspect.apply(instance, [first, second]);
+
+        // Assert --------------
+        expect(Aspect.getAspects(wrapped)).toEqual([first, second]);
+    });
+
+    test('an aspect with no matching members is not counted as added', () => {
+        // Arrange --------------
+        var instance = { foo() {} };
+        var matching = Aspect.method({ memberName: 'foo' }, { beforeCall: () => {} });
+        var notMatching = Aspect.method({ memberName: 'missing' }, { beforeCall: () => {} });
+
+        // Act --------------
+        var wrapped = Aspect.apply(instance, [matching, notMatching]);
+
+        // Assert --------------
+        expect(Aspect.getAspects(wrapped)).toEqual([matching]);
+    });
+});
