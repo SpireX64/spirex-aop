@@ -1,5 +1,5 @@
 {
-    "name": "@spirex/aot",
+    "name": "@spirex/aop",
     "version": "1.0.0",
     "description": "",
     "keywords": ["spirex"],
@@ -11,10 +11,10 @@
         "email": "SpireX@outlook.com",
         "url": "https://github.com/SpireX64"
     },
-    "homepage": "https://github.com/SpireX64/spirex-aot",
+    "homepage": "https://github.com/SpireX64/spirex-aop",
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/SpireX64/spirex-aot.git"
+        "url": "git+https://github.com/SpireX64/spirex-aop.git"
     },
     "main": "./dist/index.js",
     "module": "./dist/index.mjs",

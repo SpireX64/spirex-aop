@@ -75,7 +75,7 @@ export interface IAspect {
     getAnnotations<T extends object>(target: T, selector: keyof T): readonly TAnnotation[];
 
     annotate<T extends object>(instance: T, selector: keyof T, annotations: readonly TAnnotation[]): void;
-    apply<T extends object>(target: T, aspects: readonly TAnyAspect[]): T;
+    apply<T extends object>(instance: T, aspects: readonly TAnyAspect[]): T;
 }
 
 export declare const Aspect: IAspect;
