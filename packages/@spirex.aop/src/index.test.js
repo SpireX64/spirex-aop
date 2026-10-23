@@ -486,3 +486,96 @@ describe('Aspect method pipeline', () => {
         expect(metas[0].params).toEqual([1, 'x']);
     });
 });
+
+describe('Aspect method onThrow', () => {
+    test('runs onThrow instead of afterCall on error', () => {
+        // Arrange --------------
+        var calls = [];
+        var error = new Error('boom');
+        var instance = { foo() { throw error; } };
+        var aspect = Aspect.method({ memberName: 'foo' }, {
+            afterCall: () => calls.push('after'),
+            onThrow: (meta, err) => calls.push(['onThrow', err]),
+        });
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        try { wrapped.foo(); } catch (e) { /* expected */ }
+
+        // Assert --------------
+        expect(calls).toEqual([['onThrow', error]]);
+    });
+
+    test('runs all onThrow hooks in reverse aspect order with the thrown error', () => {
+        // Arrange --------------
+        var calls = [];
+        var error = new Error('boom');
+        var instance = { foo() { throw error; } };
+        var first = Aspect.method({ memberName: 'foo' }, {
+            onThrow: (meta, err) => calls.push(['first', err]),
+        });
+        var second = Aspect.method({ memberName: 'foo' }, {
+            onThrow: (meta, err) => calls.push(['second', err]),
+        });
+        var wrapped = Aspect.apply(instance, [first, second]);
+
+        // Act --------------
+        try { wrapped.foo(); } catch (e) { /* expected */ }
+
+        // Assert --------------
+        expect(calls).toEqual([['second', error], ['first', error]]);
+    });
+
+    test('propagates the error to the caller by default', () => {
+        // Arrange --------------
+        var calls = [];
+        var error = new Error('boom');
+        var instance = { foo() { throw error; } };
+        var aspect = Aspect.method({ memberName: 'foo' }, { onThrow: () => calls.push('onThrow') });
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        var caught;
+        try { wrapped.foo(); } catch (e) { caught = e; }
+
+        // Assert --------------
+        expect(calls).toEqual(['onThrow']);
+        expect(caught).toBe(error);
+    });
+
+    test('a hook returning a value marks the error handled and substitutes the result', () => {
+        // Arrange --------------
+        var instance = { foo() { throw new Error('boom'); } };
+        var aspect = Aspect.method({ memberName: 'foo' }, { onThrow: () => 'recovered' });
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        var result = wrapped.foo();
+
+        // Assert --------------
+        expect(result).toBe('recovered');
+    });
+
+    test('a re-throwing hook does not prevent the remaining hooks from running', () => {
+        // Arrange --------------
+        var calls = [];
+        var error = new Error('boom');
+        var instance = { foo() { throw error; } };
+        var first = Aspect.method({ memberName: 'foo' }, { onThrow: () => calls.push('first') });
+        var second = Aspect.method({ memberName: 'foo' }, {
+            onThrow: (meta, err) => {
+                calls.push('second');
+                throw err;
+            },
+        });
+        var wrapped = Aspect.apply(instance, [first, second]);
+
+        // Act --------------
+        var caught;
+        try { wrapped.foo(); } catch (e) { caught = e; }
+
+        // Assert --------------
+        expect(calls).toEqual(['second', 'first']);
+        expect(caught).toBe(error);
+    });
+});
