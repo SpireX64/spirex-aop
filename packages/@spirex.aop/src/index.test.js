@@ -583,3 +583,72 @@ describe('Aspect method onThrow', () => {
         expect(caught).toBe(error);
     });
 });
+
+describe('Aspect async method parity', () => {
+    test('keeps a sync method synchronous (the intercepted result is not a Promise)', () => {
+        // Arrange --------------
+        var calls = [];
+        var instance = { foo() { return 'sync'; } };
+        var aspect = Aspect.method({ memberName: 'foo' }, {
+            afterCall: (meta, value) => { calls.push(['after', value]); },
+        });
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        var result = wrapped.foo();
+
+        // Assert --------------
+        expect(result).not.toBeInstanceOf(Promise);
+        expect(result).toBe('sync');
+        expect(calls).toEqual([['after', 'sync']]);
+    });
+
+    test('fires afterCall after settle with the resolved value of a Promise-returning method', async () => {
+        // Arrange --------------
+        var calls = [];
+        var instance = { foo() { return Promise.resolve('async-result'); } };
+        var aspect = Aspect.method({ memberName: 'foo' }, {
+            afterCall: (meta, value) => { calls.push(['after', value]); },
+        });
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        var result = await wrapped.foo();
+
+        // Assert --------------
+        expect(result).toBe('async-result');
+        expect(calls).toEqual([['after', 'async-result']]);
+    });
+
+    test('routes a rejection reason to onThrow', async () => {
+        // Arrange --------------
+        var calls = [];
+        var error = new Error('async-boom');
+        var instance = { foo() { return Promise.reject(error); } };
+        var aspect = Aspect.method({ memberName: 'foo' }, {
+            onThrow: (meta, err) => { calls.push(['onThrow', err]); },
+        });
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        var caught;
+        try { await wrapped.foo(); } catch (e) { caught = e; }
+
+        // Assert --------------
+        expect(calls).toEqual([['onThrow', error]]);
+        expect(caught).toBe(error);
+    });
+
+    test('an onThrow-substituted result becomes the resolved value of the returned promise', async () => {
+        // Arrange --------------
+        var instance = { foo() { return Promise.reject(new Error('boom')); } };
+        var aspect = Aspect.method({ memberName: 'foo' }, { onThrow: () => 'recovered' });
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        var result = await wrapped.foo();
+
+        // Assert --------------
+        expect(result).toBe('recovered');
+    });
+});
