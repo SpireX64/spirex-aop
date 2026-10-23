@@ -38,7 +38,7 @@ function annotateMember(instance, key, annotations) {
     ) return;
 
     var store = instance[$annotations];
-    if (!store) store = instance[$annotations] = {};
+    if (!store) store = instance[$annotations] = Object.create(null);
 
     var list = store[key];
     store[key] = list ? list.concat(annotations) : annotations.slice();
@@ -161,11 +161,41 @@ function isMatchAspect(instance, aspect) {
 // #endregion Matching
 
 // #region Weaving
+function getMethodHooks(target, name) {
+    var aspects = target[$aspects] || [];
+    return aspects.filter(
+        aspect => aspect.$aspect === 'm'
+            && isMatchMember(target, name, aspect, aspect[$selector] || {}),
+    );
+}
+
+function callMethodPipeline(hooks, thisRef, methodRef, params) {
+    var meta = { thisRef: thisRef, methodRef: methodRef, params: params };
+
+    for (var aspect of hooks)
+        if (aspect.beforeCall) aspect.beforeCall(meta, undefined);
+
+    var proceed = () => methodRef.apply(thisRef, params);
+    for (var i = len(hooks) - 1; i >= 0; i--) {
+        var around = hooks[i].aroundCall;
+        if (around) proceed = ((hook, next) => () => hook(meta, next))(around, proceed);
+    }
+    var result = proceed();
+
+    for (var j = len(hooks) - 1; j >= 0; j--) {
+        var after = hooks[j].afterCall;
+        if (after) after(meta, result);
+    }
+    return result;
+}
+
 var aspectProxyHandlers = {
     get(target, key, receiver) {
-        // Hook dispatch lands here (per-member pipelines); the original
-        // member is returned unchanged while no hooks are attached.
-        return Reflect.get(target, key, receiver);
+        var value = Reflect.get(target, key, receiver);
+        if (typeof value !== 'function' || key === 'constructor') return value;
+        var hooks = getMethodHooks(target, key);
+        if (len(hooks) === 0) return value;
+        return (...args) => callMethodPipeline(hooks, receiver, value, args);
     },
 };
 
