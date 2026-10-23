@@ -75,6 +75,11 @@ function getAnnotations(target, key) {
 // #endregion Annotations
 
 // #region Aspects
+var factoryAspect = (aspectType) => (selector, definition) => readOnly({
+    ...definition,
+    $aspect: aspectType,
+    [$selector]: selector,
+});
 // #endregion Aspects
 
 // #region Matching
@@ -85,6 +90,8 @@ function getAnnotations(target, key) {
 
 // #region Public API
 export var Aspect = readOnly({
+    method: factoryAspect('m'),
+    accessor: factoryAspect('a'),
     annotate: annotateMember,
     getAnnotations: getAnnotations,
 });
