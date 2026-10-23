@@ -351,3 +351,138 @@ describe('Aspect.apply lifecycle and introspection', () => {
         expect(Aspect.getAspects(wrapped)).toEqual([matching]);
     });
 });
+
+describe('Aspect method pipeline', () => {
+    test('runs beforeCall hooks in apply-list order', () => {
+        // Arrange --------------
+        var calls = [];
+        var instance = { foo() {} };
+        var first = Aspect.method({ memberName: 'foo' }, { beforeCall: () => calls.push('first') });
+        var second = Aspect.method({ memberName: 'foo' }, { beforeCall: () => calls.push('second') });
+        var wrapped = Aspect.apply(instance, [first, second]);
+
+        // Act --------------
+        wrapped.foo();
+
+        // Assert --------------
+        expect(calls).toEqual(['first', 'second']);
+    });
+
+    test('nests aroundCall hooks around the original call', () => {
+        // Arrange --------------
+        var calls = [];
+        var instance = { foo() { calls.push('original'); } };
+        var outer = Aspect.method({ memberName: 'foo' }, {
+            aroundCall: (meta, proceed) => {
+                calls.push('outer-in');
+                var result = proceed();
+                calls.push('outer-out');
+                return result;
+            },
+        });
+        var inner = Aspect.method({ memberName: 'foo' }, {
+            aroundCall: (meta, proceed) => {
+                calls.push('inner-in');
+                var result = proceed();
+                calls.push('inner-out');
+                return result;
+            },
+        });
+        var wrapped = Aspect.apply(instance, [outer, inner]);
+
+        // Act --------------
+        wrapped.foo();
+
+        // Assert --------------
+        expect(calls).toEqual(['outer-in', 'inner-in', 'original', 'inner-out', 'outer-out']);
+    });
+
+    test('passes aroundCall a proceed pre-bound to thisRef and params', () => {
+        // Arrange --------------
+        var calls = [];
+        var instance = { base: 10, add(a, b) { return this.base + a + b; } };
+        var aspect = Aspect.method({ memberName: 'add' }, {
+            aroundCall: (meta, proceed) => {
+                calls.push('around');
+                return proceed();
+            },
+        });
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        var result = wrapped.add(1, 2);
+
+        // Assert --------------
+        expect(calls).toEqual(['around']);
+        expect(result).toBe(13);
+    });
+
+    test('return proceed() preserves the original result', () => {
+        // Arrange --------------
+        var calls = [];
+        var instance = { foo() { return 'original'; } };
+        var aspect = Aspect.method({ memberName: 'foo' }, {
+            aroundCall: (meta, proceed) => {
+                calls.push('around');
+                return proceed();
+            },
+        });
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        var result = wrapped.foo();
+
+        // Assert --------------
+        expect(calls).toEqual(['around']);
+        expect(result).toBe('original');
+    });
+
+    test('an aroundCall return value overwrites the result', () => {
+        // Arrange --------------
+        var instance = { foo() { return 'original'; } };
+        var aspect = Aspect.method({ memberName: 'foo' }, { aroundCall: () => 'overwritten' });
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        var result = wrapped.foo();
+
+        // Assert --------------
+        expect(result).toBe('overwritten');
+    });
+
+    test('runs afterCall hooks in reverse order with the final return value', () => {
+        // Arrange --------------
+        var calls = [];
+        var instance = { foo() { return 'original'; } };
+        var overwrite = Aspect.method({ memberName: 'foo' }, { aroundCall: () => 'final' });
+        var first = Aspect.method({ memberName: 'foo' }, {
+            afterCall: (meta, value) => calls.push(['first', value]),
+        });
+        var second = Aspect.method({ memberName: 'foo' }, {
+            afterCall: (meta, value) => calls.push(['second', value]),
+        });
+        var wrapped = Aspect.apply(instance, [overwrite, first, second]);
+
+        // Act --------------
+        wrapped.foo();
+
+        // Assert --------------
+        expect(calls).toEqual([['second', 'final'], ['first', 'final']]);
+    });
+
+    test('provides thisRef, methodRef and params in the method meta', () => {
+        // Arrange --------------
+        var metas = [];
+        var instance = { foo(a, b) {} };
+        var aspect = Aspect.method({ memberName: 'foo' }, { beforeCall: meta => metas.push(meta) });
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        wrapped.foo(1, 'x');
+
+        // Assert --------------
+        expect(metas[0].thisRef).toBe(wrapped);
+        expect(metas[0].methodRef).toBe(instance.foo);
+        expect(metas[0].params).toEqual([1, 'x']);
+    });
+});
