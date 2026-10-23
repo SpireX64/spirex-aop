@@ -55,11 +55,11 @@ function findMemberKey(instance, methodRef) {
     return undefined;
 }
 
-function getAnnotations(target, key) {
+function getAnnotations(target, ...rest) {
     var instance, memberKey;
-    if (arguments.length > 1) {
+    if (rest.length > 0) {
         instance = target;
-        memberKey = key;
+        memberKey = rest[0];
     } else if (typeof target.name === 'string') {
         instance = target.thisRef;
         memberKey = target.name;
