@@ -6,6 +6,7 @@ var isArr = Array.isArray;
 var getProto = Object.getPrototypeOf;
 var getOwnNames = Object.getOwnPropertyNames;
 var getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var reflectGet = Reflect.get;
 // #endregion Shortcuts
 
 // #region Symbols
@@ -159,10 +160,43 @@ function isMatchAspect(instance, aspect) {
 // #endregion Matching
 
 // #region Weaving
+var aspectProxyHandlers = {
+    get(target, key, receiver) {
+        // Hook dispatch lands here (per-member pipelines); the original
+        // member is returned unchanged while no hooks are attached.
+        return reflectGet(target, key, receiver);
+    },
+};
+
+function isWrapped(instance) {
+    return instance != null && instance[$proxy] === instance;
+}
+
+function getAspects(instance) {
+    var applied = instance != null ? instance[$aspects] : undefined;
+    return applied ? readOnly(applied.slice()) : [];
+}
+
 function applyAspects(instance, aspects) {
     if (instance == null || !isArr(aspects)) return instance;
-    var hasMatch = aspects.some(aspect => isMatchAspect(instance, aspect));
-    return hasMatch ? new Proxy(instance, {}) : instance;
+
+    var applied = instance[$aspects] ? instance[$aspects].slice() : [];
+    for (var aspect of aspects) {
+        if (applied.indexOf(aspect) < 0 && isMatchAspect(instance, aspect))
+            applied.push(aspect);
+    }
+    if (applied.length === 0) return instance;
+
+    var existingProxy = instance[$proxy];
+    if (existingProxy) {
+        instance[$aspects] = applied;
+        return existingProxy;
+    }
+
+    var proxyInstance = new Proxy(instance, aspectProxyHandlers);
+    instance[$proxy] = proxyInstance;
+    instance[$aspects] = applied;
+    return proxyInstance;
 }
 // #endregion Weaving
 
@@ -173,5 +207,7 @@ export var Aspect = readOnly({
     annotate: annotateMember,
     getAnnotations: getAnnotations,
     apply: applyAspects,
+    isWrapped: isWrapped,
+    getAspects: getAspects,
 });
 // #endregion Public API
