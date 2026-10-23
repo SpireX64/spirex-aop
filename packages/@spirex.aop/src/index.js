@@ -6,7 +6,8 @@ var isArr = Array.isArray;
 var getProto = Object.getPrototypeOf;
 var getOwnNames = Object.getOwnPropertyNames;
 var getOwnPropDesc = Object.getOwnPropertyDescriptor;
-var reflectGet = Reflect.get;
+var defineProps = Object.defineProperties;
+var len = (a) => a.length;
 // #endregion Shortcuts
 
 // #region Symbols
@@ -19,11 +20,11 @@ var $aspects = Symbol();
 
 // #region Annotations
 export function defineAnnotation(name) {
-    var annotationFactory = (...args) => readOnly(Object.defineProperties(
+    var annotationFactory = (...args) => readOnly(defineProps(
         { name, args },
         { [$annotationType]: { value: true } },
     ));
-    return Object.defineProperties(annotationFactory, {
+    return defineProps(annotationFactory, {
         [$annotationType]: { value: true },
         name: { value: name },
     });
@@ -33,7 +34,7 @@ function annotateMember(instance, key, annotations) {
     if (instance == null
         || !(key in instance)
         || !isArr(annotations)
-        || annotations.length === 0
+        || len(annotations) === 0
     ) return;
 
     var store = instance[$annotations];
@@ -47,7 +48,7 @@ function findMemberKey(instance, methodRef) {
     var obj = instance;
     while (obj != null) {
         var names = getOwnNames(obj);
-        for (var i = 0; i < names.length; i++) {
+        for (var i = 0; i < len(names); i++) {
             var desc = getOwnPropDesc(obj, names[i]);
             if (desc && desc.value === methodRef) return names[i];
         }
@@ -98,8 +99,8 @@ function isMatchPattern(pattern, value) {
 
 function isSameAnnotation(a, b) {
     if (a === b) return true;
-    if (a.name !== b.name || a.args.length !== b.args.length) return false;
-    for (var i = 0; i < a.args.length; i++)
+    if (a.name !== b.name || len(a.args) !== len(b.args)) return false;
+    for (var i = 0; i < len(a.args); i++)
         if (a.args[i] !== b.args[i]) return false;
     return true;
 }
@@ -118,7 +119,7 @@ function getMemberNames(instance) {
     var obj = instance;
     while (obj != null && obj !== Object.prototype) {
         var ownNames = getOwnNames(obj);
-        for (var i = 0; i < ownNames.length; i++) {
+        for (var i = 0; i < len(ownNames); i++) {
             var name = ownNames[i];
             if (name !== 'constructor' && names.indexOf(name) < 0) names.push(name);
         }
@@ -164,7 +165,7 @@ var aspectProxyHandlers = {
     get(target, key, receiver) {
         // Hook dispatch lands here (per-member pipelines); the original
         // member is returned unchanged while no hooks are attached.
-        return reflectGet(target, key, receiver);
+        return Reflect.get(target, key, receiver);
     },
 };
 
@@ -185,7 +186,7 @@ function applyAspects(instance, aspects) {
         if (applied.indexOf(aspect) < 0 && isMatchAspect(instance, aspect))
             applied.push(aspect);
     }
-    if (applied.length === 0) return instance;
+    if (len(applied) === 0) return instance;
 
     var existingProxy = instance[$proxy];
     if (existingProxy) {
