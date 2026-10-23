@@ -73,3 +73,41 @@ describe('Aspect.annotate / Aspect.getAnnotations', () => {
         expect(Aspect.getAnnotations(instance, 'foo')).toEqual([Tag('only-foo')]);
     });
 });
+
+describe('Aspect.method', () => {
+    test('returns a frozen method aspect carrying the definition and selector', () => {
+        // Arrange --------------
+        var selector = { memberName: 'foo' };
+        var beforeCall = () => {};
+        var definition = { displayName: 'LogMethod', beforeCall: beforeCall };
+
+        // Act --------------
+        var aspect = Aspect.method(selector, definition);
+
+        // Assert --------------
+        expect(aspect).is.frozen;
+        expect(aspect.$aspect).toBe('m');
+        expect(aspect.displayName).toBe('LogMethod');
+        expect(aspect.beforeCall).toBe(beforeCall);
+        expect(Object.getOwnPropertySymbols(aspect).length).toBeGreaterThan(0);
+    });
+});
+
+describe('Aspect.accessor', () => {
+    test('returns a frozen accessor aspect carrying the definition and selector', () => {
+        // Arrange --------------
+        var selector = { memberName: 'value' };
+        var beforeGetter = () => {};
+        var definition = { displayName: 'WatchValue', beforeGetter: beforeGetter };
+
+        // Act --------------
+        var aspect = Aspect.accessor(selector, definition);
+
+        // Assert --------------
+        expect(aspect).is.frozen;
+        expect(aspect.$aspect).toBe('a');
+        expect(aspect.displayName).toBe('WatchValue');
+        expect(aspect.beforeGetter).toBe(beforeGetter);
+        expect(Object.getOwnPropertySymbols(aspect).length).toBeGreaterThan(0);
+    });
+});
