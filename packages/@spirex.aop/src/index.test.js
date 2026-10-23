@@ -111,3 +111,146 @@ describe('Aspect.accessor', () => {
         expect(Object.getOwnPropertySymbols(aspect).length).toBeGreaterThan(0);
     });
 });
+
+describe('Aspect.apply selector matching', () => {
+    test('matches className against instance.constructor.name', () => {
+        // Arrange --------------
+        class Sample { foo() {} }
+        var instance = new Sample();
+        var aspect = Aspect.method({ className: 'Sample' }, { beforeCall: () => {} });
+
+        // Act --------------
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Assert --------------
+        expect(wrapped).not.toBe(instance);
+    });
+
+    test('does not wrap when className does not match', () => {
+        // Arrange --------------
+        class Sample { foo() {} }
+        var instance = new Sample();
+        var aspect = Aspect.method({ className: 'Other' }, { beforeCall: () => {} });
+
+        // Act --------------
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Assert --------------
+        expect(wrapped).toBe(instance);
+    });
+
+    test('matches memberName as a string', () => {
+        // Arrange --------------
+        var instance = { foo() {}, bar() {} };
+        var aspect = Aspect.method({ memberName: 'foo' }, { beforeCall: () => {} });
+
+        // Act --------------
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Assert --------------
+        expect(wrapped).not.toBe(instance);
+    });
+
+    test('matches memberName as a RegExp', () => {
+        // Arrange --------------
+        var instance = { foo() {}, bar() {} };
+        var aspect = Aspect.method({ memberName: /^fo/ }, { beforeCall: () => {} });
+
+        // Act --------------
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Assert --------------
+        expect(wrapped).not.toBe(instance);
+    });
+
+    test('matches memberName as an array of patterns', () => {
+        // Arrange --------------
+        var instance = { foo() {}, bar() {} };
+        var aspect = Aspect.method({ memberName: ['nope', /bar$/] }, { beforeCall: () => {} });
+
+        // Act --------------
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Assert --------------
+        expect(wrapped).not.toBe(instance);
+    });
+
+    test('absent memberName matches all members including plain data properties', () => {
+        // Arrange --------------
+        var instance = { value: 42 };
+        var aspect = Aspect.accessor({}, { beforeGetter: () => {} });
+
+        // Act --------------
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Assert --------------
+        expect(wrapped).not.toBe(instance);
+    });
+
+    test('annotations selector matches members carrying the annotation instance', () => {
+        // Arrange --------------
+        var Tag = defineAnnotation('Tag');
+        var instance = { foo() {}, bar() {} };
+        Aspect.annotate(instance, 'foo', [Tag('x')]);
+        var aspect = Aspect.method({ annotations: Tag('x') }, { beforeCall: () => {} });
+
+        // Act --------------
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Assert --------------
+        expect(wrapped).not.toBe(instance);
+    });
+
+    test('annotations selector matches members carrying an annotation of the given ctor', () => {
+        // Arrange --------------
+        var Tag = defineAnnotation('Tag');
+        var instance = { foo() {}, bar() {} };
+        Aspect.annotate(instance, 'foo', [Tag('x')]);
+        var aspect = Aspect.method({ annotations: Tag }, { beforeCall: () => {} });
+
+        // Act --------------
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Assert --------------
+        expect(wrapped).not.toBe(instance);
+    });
+
+    test('does not wrap when no member carries the selected annotation', () => {
+        // Arrange --------------
+        var Tag = defineAnnotation('Tag');
+        var Other = defineAnnotation('Other');
+        var instance = { foo() {} };
+        Aspect.annotate(instance, 'foo', [Other('x')]);
+        var aspect = Aspect.method({ annotations: Tag }, { beforeCall: () => {} });
+
+        // Act --------------
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Assert --------------
+        expect(wrapped).toBe(instance);
+    });
+
+    test('supports plain objects with members as own properties', () => {
+        // Arrange --------------
+        var instance = { foo() {} };
+        var aspect = Aspect.method({ memberName: 'foo' }, { beforeCall: () => {} });
+
+        // Act --------------
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Assert --------------
+        expect(wrapped).not.toBe(instance);
+    });
+
+    test('an aspect whose selector matches no member is ignored and does not wrap', () => {
+        // Arrange --------------
+        var instance = { foo() {} };
+        var aspect = Aspect.method({ memberName: 'missing' }, { beforeCall: () => {} });
+
+        // Act --------------
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Assert --------------
+        expect(wrapped).toBe(instance);
+    });
+});
