@@ -7,12 +7,12 @@ export type TAnnotationCtor<Args extends any[]> = (...args: Args) => TAnnotation
 export declare function defineAnnotation<Args extends any[]>(name: string): TAnnotationCtor<Args>;
 
 export type TNamePattern<T = string> = RegExp | T;
-export type TAnnorationOrCtor = TAnnotationCtor<any> | TAnnotation
+export type TAnnotationOrCtor = TAnnotationCtor<any> | TAnnotation
 
 export type TMemberSelector<T = string> = {
     readonly className?: readonly TNamePattern[] | TNamePattern | undefined;
     readonly memberName?: readonly TNamePattern<T>[] | TNamePattern<T> | undefined;
-    readonly annotations?: readonly TAnnorationOrCtor[] | TAnnorationOrCtor | undefined;
+    readonly annotations?: readonly TAnnotationOrCtor[] | TAnnotationOrCtor | undefined;
 };
 
 export type TAccessorAspect = { readonly $aspect: 'a' };
@@ -36,12 +36,12 @@ export type TAccessorGetFunction = () => unknown;
 export type TAccessorSetFunction = (value: unknown) => void;
 
 export type TMethodAspectDelegate = (meta: TMethodAspectTarget, returnValue: unknown) => void;
-export type TMethodAspectAroundDelegate = (meta: TMethodAspectTarget, proceed: TMethodProceedFunction) => void;
+export type TMethodAspectAroundDelegate = (meta: TMethodAspectTarget, proceed: TMethodProceedFunction) => unknown;
 export type TMethodAspectCatch = (meta: TMethodAspectTarget, error: unknown) => void;
 
 export type TAccessorAspectDelegate = (meta: TAccessorAspectTarget, value: unknown) => void;
-export type TMethodAspectAroundGetterDelegate = (meta: TMethodAspectTarget, get: TAccessorGetFunction) => void;
-export type TMethodAspectAroundSetterDelegate = (meta: TMethodAspectTarget, set: TAccessorSetFunction) => void;
+export type TMethodAspectAroundGetterDelegate = (meta: TAccessorAspectTarget, get: TAccessorGetFunction) => unknown;
+export type TMethodAspectAroundSetterDelegate = (meta: TAccessorAspectTarget, set: TAccessorSetFunction) => void;
 export type TAccessorAspectCatch = (meta: TAccessorAspectTarget, error: unknown) => void;
 
 export type TMethodAspectDefinition = {
@@ -76,6 +76,9 @@ export interface IAspect {
 
     annotate<T extends object>(instance: T, selector: keyof T, annotations: readonly TAnnotation[]): void;
     apply<T extends object>(instance: T, aspects: readonly TAnyAspect[]): T;
+
+    isWrapped(instance: unknown): boolean;
+    getAspects(instance: unknown): readonly TAnyAspect[];
 }
 
 export declare const Aspect: IAspect;
