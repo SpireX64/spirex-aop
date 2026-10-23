@@ -180,7 +180,26 @@ function callMethodPipeline(hooks, thisRef, methodRef, params) {
         var around = hooks[i].aroundCall;
         if (around) proceed = ((hook, next) => () => hook(meta, next))(around, proceed);
     }
-    var result = proceed();
+    var result;
+    try {
+        result = proceed();
+    } catch (error) {
+        var handled = false;
+        for (var k = len(hooks) - 1; k >= 0; k--) {
+            var onThrow = hooks[k].onThrow;
+            if (onThrow) {
+                try {
+                    var handledValue = onThrow(meta, error);
+                    if (handledValue !== undefined) {
+                        result = handledValue;
+                        handled = true;
+                    }
+                } catch (hookError) { /* a re-throwing hook does not stop the chain */ }
+            }
+        }
+        if (!handled) throw error;
+        return result;
+    }
 
     for (var j = len(hooks) - 1; j >= 0; j--) {
         var after = hooks[j].afterCall;

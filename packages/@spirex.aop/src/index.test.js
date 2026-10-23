@@ -494,8 +494,8 @@ describe('Aspect method onThrow', () => {
         var error = new Error('boom');
         var instance = { foo() { throw error; } };
         var aspect = Aspect.method({ memberName: 'foo' }, {
-            afterCall: () => calls.push('after'),
-            onThrow: (meta, err) => calls.push(['onThrow', err]),
+            afterCall: () => { calls.push('after'); },
+            onThrow: (meta, err) => { calls.push(['onThrow', err]); },
         });
         var wrapped = Aspect.apply(instance, [aspect]);
 
@@ -512,10 +512,10 @@ describe('Aspect method onThrow', () => {
         var error = new Error('boom');
         var instance = { foo() { throw error; } };
         var first = Aspect.method({ memberName: 'foo' }, {
-            onThrow: (meta, err) => calls.push(['first', err]),
+            onThrow: (meta, err) => { calls.push(['first', err]); },
         });
         var second = Aspect.method({ memberName: 'foo' }, {
-            onThrow: (meta, err) => calls.push(['second', err]),
+            onThrow: (meta, err) => { calls.push(['second', err]); },
         });
         var wrapped = Aspect.apply(instance, [first, second]);
 
@@ -531,7 +531,9 @@ describe('Aspect method onThrow', () => {
         var calls = [];
         var error = new Error('boom');
         var instance = { foo() { throw error; } };
-        var aspect = Aspect.method({ memberName: 'foo' }, { onThrow: () => calls.push('onThrow') });
+        var aspect = Aspect.method({ memberName: 'foo' }, {
+            onThrow: () => { calls.push('onThrow'); },
+        });
         var wrapped = Aspect.apply(instance, [aspect]);
 
         // Act --------------
@@ -561,7 +563,9 @@ describe('Aspect method onThrow', () => {
         var calls = [];
         var error = new Error('boom');
         var instance = { foo() { throw error; } };
-        var first = Aspect.method({ memberName: 'foo' }, { onThrow: () => calls.push('first') });
+        var first = Aspect.method({ memberName: 'foo' }, {
+            onThrow: () => { calls.push('first'); },
+        });
         var second = Aspect.method({ memberName: 'foo' }, {
             onThrow: (meta, err) => {
                 calls.push('second');
