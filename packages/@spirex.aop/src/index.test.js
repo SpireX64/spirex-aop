@@ -1,114 +1,10 @@
 import { describe, expect, test } from "vitest";
-import { Aspect, defineAnnotation } from "./index.js";
-
-describe("defineAnnotation", () => {
-    test("returns a constructor producing frozen { name, args } annotations", () => {
-        // Arrange --------------
-        var WatchLog = defineAnnotation("WatchLog");
-
-        // Act --------------
-        var annotation = WatchLog(1, "x");
-
-        // Assert --------------
-        expect(annotation).toEqual({ name: "WatchLog", args: [1, "x"] });
-        expect(annotation).is.frozen;
-    });
-});
-
-describe("Aspect.annotate / Aspect.getAnnotations", () => {
-    test("stores annotations per member and returns them by instance + key", () => {
-        // Arrange --------------
-        var Tag = defineAnnotation("Tag");
-        var instance = { foo() {}, bar() {} };
-
-        // Act --------------
-        Aspect.annotate(instance, "foo", [Tag("a"), Tag("b")]);
-
-        // Assert --------------
-        expect(Aspect.getAnnotations(instance, "foo")).toEqual([
-            Tag("a"),
-            Tag("b"),
-        ]);
-    });
-
-    test("returns annotations via method target meta", () => {
-        // Arrange --------------
-        var Tag = defineAnnotation("Tag");
-        var instance = { foo() {} };
-        Aspect.annotate(instance, "foo", [Tag("m")]);
-        var meta = { thisRef: instance, methodRef: instance.foo, params: [] };
-
-        // Act --------------
-        var annotations = Aspect.getAnnotations(meta);
-
-        // Assert --------------
-        expect(annotations).toEqual([Tag("m")]);
-    });
-
-    test("returns annotations via accessor target meta", () => {
-        // Arrange --------------
-        var Tag = defineAnnotation("Tag");
-        var instance = { value: 42 };
-        Aspect.annotate(instance, "value", [Tag("a")]);
-        var meta = {
-            thisRef: instance,
-            name: "value",
-            descriptor: Object.getOwnPropertyDescriptor(instance, "value"),
-        };
-
-        // Act --------------
-        var annotations = Aspect.getAnnotations(meta);
-
-        // Assert --------------
-        expect(annotations).toEqual([Tag("a")]);
-    });
-
-    test("annotations of one member do not leak onto another member", () => {
-        // Arrange --------------
-        var Tag = defineAnnotation("Tag");
-        var instance = { foo() {}, bar() {} };
-
-        // Act --------------
-        Aspect.annotate(instance, "foo", [Tag("only-foo")]);
-
-        // Assert --------------
-        expect(Aspect.getAnnotations(instance, "bar")).toEqual([]);
-        expect(Aspect.getAnnotations(instance, "foo")).toEqual([
-            Tag("only-foo"),
-        ]);
-    });
-
-    test("accepts a single annotation object and returns it as a one-element array", () => {
-        // Arrange --------------
-        var Deprecated = defineAnnotation("Deprecated");
-        var instance = { doAction() {} };
-
-        // Act --------------
-        Aspect.annotate(instance, "doAction", Deprecated("1.2.3"));
-
-        // Assert --------------
-        expect(Aspect.getAnnotations(instance, "doAction")).toEqual([
-            Deprecated("1.2.3"),
-        ]);
-    });
-
-    test("a single annotation object is visible via method target meta", () => {
-        // Arrange --------------
-        var Deprecated = defineAnnotation("Deprecated");
-        var instance = { doAction() {} };
-        var meta = {
-            thisRef: instance,
-            methodRef: instance.doAction,
-            params: [],
-        };
-
-        // Act --------------
-        Aspect.annotate(instance, "doAction", Deprecated("1.2.3"));
-
-        // Assert --------------
-        expect(Aspect.getAnnotations(meta)).toEqual([Deprecated("1.2.3")]);
-    });
-});
+import { Aspect } from "./index.js";
+import {
+    annotate,
+    defineAnnotation,
+    withAnnotations,
+} from "./annotations.js";
 
 describe("Aspect.method", () => {
     test("returns a frozen method aspect carrying the definition and selector", () => {
@@ -245,48 +141,62 @@ describe("Aspect.apply selector matching", () => {
         expect(wrapped).not.toBe(instance);
     });
 
-    test("annotations selector matches members carrying the annotation instance", () => {
+    test("predicate withAnnotations matches members carrying the annotation instance", () => {
         // Arrange --------------
+        var calls = [];
         var Tag = defineAnnotation("Tag");
         var instance = { foo() {}, bar() {} };
-        Aspect.annotate(instance, "foo", [Tag("x")]);
+        annotate([Tag("x")], instance, "foo");
         var aspect = Aspect.method(
-            { annotations: Tag("x") },
-            { beforeCall: () => {} },
+            { predicate: withAnnotations([Tag("x")]) },
+            {
+                beforeCall: (meta) => {
+                    calls.push(meta.methodRef.name);
+                },
+            },
         );
 
         // Act --------------
         var wrapped = Aspect.apply(instance, [aspect]);
+        wrapped.foo();
+        wrapped.bar();
 
         // Assert --------------
-        expect(wrapped).not.toBe(instance);
+        expect(calls).toEqual(["foo"]);
     });
 
-    test("annotations selector matches members carrying an annotation of the given ctor", () => {
+    test("predicate withAnnotations matches members carrying an annotation of the given ctor", () => {
         // Arrange --------------
+        var calls = [];
         var Tag = defineAnnotation("Tag");
         var instance = { foo() {}, bar() {} };
-        Aspect.annotate(instance, "foo", [Tag("x")]);
+        annotate([Tag("x")], instance, "foo");
         var aspect = Aspect.method(
-            { annotations: Tag },
-            { beforeCall: () => {} },
+            { predicate: withAnnotations([Tag]) },
+            {
+                beforeCall: (meta) => {
+                    calls.push(meta.methodRef.name);
+                },
+            },
         );
 
         // Act --------------
         var wrapped = Aspect.apply(instance, [aspect]);
+        wrapped.foo();
+        wrapped.bar();
 
         // Assert --------------
-        expect(wrapped).not.toBe(instance);
+        expect(calls).toEqual(["foo"]);
     });
 
-    test("does not wrap when no member carries the selected annotation", () => {
+    test("does not wrap when no member carries the required annotations", () => {
         // Arrange --------------
         var Tag = defineAnnotation("Tag");
         var Other = defineAnnotation("Other");
         var instance = { foo() {} };
-        Aspect.annotate(instance, "foo", [Other("x")]);
+        annotate([Other("x")], instance, "foo");
         var aspect = Aspect.method(
-            { annotations: Tag },
+            { predicate: withAnnotations([Tag]) },
             { beforeCall: () => {} },
         );
 
@@ -325,6 +235,97 @@ describe("Aspect.apply selector matching", () => {
 
         // Assert --------------
         expect(wrapped).toBe(instance);
+    });
+});
+
+describe("Aspect.apply predicate matching", () => {
+    test("passes { thisRef, name, descriptor } meta to the predicate", () => {
+        // Arrange --------------
+        var metas = [];
+        var instance = { foo() {} };
+        var aspect = Aspect.method(
+            {
+                predicate: (meta) => {
+                    metas.push(meta);
+                    return true;
+                },
+            },
+            { beforeCall: () => {} },
+        );
+
+        // Act --------------
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Assert --------------
+        expect(wrapped).not.toBe(instance);
+        expect(metas[0].thisRef).toBe(instance);
+        expect(metas[0].name).toBe("foo");
+        expect(metas[0].descriptor).toEqual(
+            Object.getOwnPropertyDescriptor(instance, "foo"),
+        );
+    });
+
+    test("does not wrap when the predicate matches no member", () => {
+        // Arrange --------------
+        var instance = { foo() {} };
+        var aspect = Aspect.method(
+            { predicate: () => false },
+            { beforeCall: () => {} },
+        );
+
+        // Act --------------
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Assert --------------
+        expect(wrapped).toBe(instance);
+    });
+
+    test("evaluates predicates at apply time only, not per member access", () => {
+        // Arrange --------------
+        var calls = 0;
+        var instance = { foo() {} };
+        var aspect = Aspect.method(
+            {
+                predicate: () => {
+                    calls++;
+                    return true;
+                },
+            },
+            { beforeCall: () => {} },
+        );
+        var wrapped = Aspect.apply(instance, [aspect]);
+        var countAfterApply = calls;
+
+        // Act --------------
+        wrapped.foo();
+        wrapped.foo();
+
+        // Assert --------------
+        expect(calls).toBe(countAfterApply);
+    });
+
+    test("re-evaluates predicates on re-apply (the memo is invalidated)", () => {
+        // Arrange --------------
+        var calls = 0;
+        var instance = { foo() {} };
+        var makeAspect = () =>
+            Aspect.method(
+                {
+                    predicate: () => {
+                        calls++;
+                        return true;
+                    },
+                },
+                { beforeCall: () => {} },
+            );
+        var wrapped = Aspect.apply(instance, [makeAspect()]);
+        var countAfterFirstApply = calls;
+
+        // Act --------------
+        Aspect.apply(wrapped, [makeAspect()]);
+
+        // Assert --------------
+        expect(calls).toBeGreaterThan(countAfterFirstApply);
     });
 });
 
@@ -386,18 +387,31 @@ describe("Aspect.apply lifecycle and introspection", () => {
             { beforeCall: () => {} },
         );
         var aspectTagged = Aspect.method(
-            { annotations: Tag },
+            { predicate: withAnnotations([Tag]) },
             { beforeCall: () => {} },
         );
         var wrapped = Aspect.apply(instance, [aspectFoo]);
 
         // Act --------------
-        Aspect.annotate(instance, "bar", [Tag()]);
+        annotate([Tag()], instance, "bar");
         var updated = Aspect.apply(wrapped, [aspectTagged]);
 
         // Assert --------------
         expect(updated).toBe(wrapped);
         expect(Aspect.getAspects(updated)).toEqual([aspectFoo, aspectTagged]);
+    });
+
+    test("no longer exposes annotate and getAnnotations", () => {
+        // Arrange --------------
+        var keys = Object.keys(Aspect);
+
+        // Act --------------
+        var hasAnnotate = keys.includes("annotate");
+        var hasGetAnnotations = keys.includes("getAnnotations");
+
+        // Assert --------------
+        expect(hasAnnotate).is.false;
+        expect(hasGetAnnotations).is.false;
     });
 
     test("does not add the same aspect instance twice", () => {
