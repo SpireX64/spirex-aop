@@ -163,17 +163,4 @@ export function hasAnnotation(classOrInstance, annotationOrCtor) {
         annotationOrCtor,
     );
 }
-
-/**
- * Builds a predicate truthy only when every listed annotation is present on
- * the member identified by the meta (respecting the inheritance merge).
- * @param {readonly TAnnotationOrCtor[]} list Required annotations (instances or ctors).
- * @returns {(meta: TAnnotationPredicateMeta) => boolean} The predicate.
- */
-export function withAnnotations(list) {
-    return (meta) => {
-        var present = getAnnotations(meta.thisRef, meta.name);
-        return list.every(item => matchAnnotation(present, item));
-    };
-}
 // #endregion Annotations

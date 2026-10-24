@@ -1,5 +1,14 @@
 /// <reference path="./index.d.ts"/>
 
+// The annotations API lives in ./annotations.js (standalone subpath) and is
+// re-exported at the bottom for convenience; the aspect runtime never reads it.
+import {
+    annotate,
+    defineAnnotation,
+    getAnnotations,
+    hasAnnotation,
+} from "./annotations.js";
+
 // #region Shortcuts
 // Aliases for frequently used standard functions (minified bundle size rule:
 // an alias exists only when used more than once and shorter than the original).
@@ -457,16 +466,49 @@ function applyAspects(instance, aspects) {
 }
 // #endregion Weaving
 
+// #region Predicate helpers
+/**
+ * Structural equality of two annotations: same name and same args.
+ * Local to the aspect module — withAnnotations is aspect-side, so the
+ * comparison lives here (the annotations module keeps its own copy).
+ * @param {TAnnotation} a
+ * @param {TAnnotation} b
+ * @returns {boolean}
+ */
+function isSameAnnotation(a, b) {
+    if (a === b) return true;
+    if (a.name !== b.name || len(a.args) !== len(b.args)) return false;
+    for (var i = 0; i < len(a.args); i++)
+        if (a.args[i] !== b.args[i]) return false;
+    return true;
+}
+
+/**
+ * Builds a member predicate truthy only when every listed annotation is
+ * present on the member identified by the meta (respecting the inheritance
+ * merge). A constructor entry matches by annotation name, an instance entry
+ * matches structurally. User-invoked helper: it reads annotation storage via
+ * the annotations module's public API — the matching runtime never does.
+ * @param {readonly TAnnotationOrCtor[]} list Required annotations (instances or ctors).
+ * @returns {(meta: TAnnotationPredicateMeta) => boolean} The predicate.
+ */
+export function withAnnotations(list) {
+    return (meta) => {
+        var present = getAnnotations(meta.thisRef, meta.name);
+        return list.every((item) =>
+            present.some(
+                typeof item === "function"
+                    ? (ann) => ann.name === item.name
+                    : (ann) => isSameAnnotation(ann, item),
+            ),
+        );
+    };
+}
+// #endregion Predicate helpers
+
 // #region Public API
-// The annotations API lives in ./annotations.js (standalone subpath) and is
-// re-exported here for convenience; the aspect runtime never reads it.
-export {
-    annotate,
-    defineAnnotation,
-    getAnnotations,
-    hasAnnotation,
-    withAnnotations,
-} from "./annotations.js";
+// withAnnotations is aspect-side (unusable without aspects) — implemented above.
+export { annotate, defineAnnotation, getAnnotations, hasAnnotation };
 
 /**
  * The aspect API surface (see `IAspect` in `index.d.ts`).
