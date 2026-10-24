@@ -1,10 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { Aspect } from "./index.js";
-import {
-    annotate,
-    defineAnnotation,
-    withAnnotations,
-} from "./annotations.js";
+import { Aspect, withAnnotations } from "./index.js";
+import { annotate, defineAnnotation } from "./annotations.js";
 
 describe("Aspect.method", () => {
     test("returns a frozen method aspect carrying the definition and selector", () => {
@@ -1353,5 +1349,47 @@ describe("Aspect accessor onThrow", () => {
         // Assert --------------
         expect(calls).toEqual(["onSetterThrows"]);
         expect(caught).toBeUndefined();
+    });
+});
+
+describe("withAnnotations", () => {
+    test("the predicate is truthy when every listed annotation is present on the member", () => {
+        // Arrange --------------
+        var Route = defineAnnotation("Route");
+        var Auth = defineAnnotation("Auth");
+        var instance = { login() {} };
+        annotate([Route("api/auth"), Auth()], instance, "login");
+        var predicate = withAnnotations([Route, Auth]);
+        var meta = {
+            thisRef: instance,
+            name: "login",
+            descriptor: Object.getOwnPropertyDescriptor(instance, "login"),
+        };
+
+        // Act --------------
+        var result = predicate(meta);
+
+        // Assert --------------
+        expect(result).is.true;
+    });
+
+    test("the predicate is falsy when a listed annotation is missing", () => {
+        // Arrange --------------
+        var Route = defineAnnotation("Route");
+        var Auth = defineAnnotation("Auth");
+        var instance = { login() {} };
+        annotate([Route("api/auth")], instance, "login");
+        var predicate = withAnnotations([Route, Auth]);
+        var meta = {
+            thisRef: instance,
+            name: "login",
+            descriptor: Object.getOwnPropertyDescriptor(instance, "login"),
+        };
+
+        // Act --------------
+        var result = predicate(meta);
+
+        // Assert --------------
+        expect(result).is.false;
     });
 });

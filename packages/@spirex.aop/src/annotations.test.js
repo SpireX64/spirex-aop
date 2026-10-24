@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { annotate, defineAnnotation, getAnnotations, hasAnnotation, withAnnotations } from './annotations.js';
+import { annotate, defineAnnotation, getAnnotations, hasAnnotation } from './annotations.js';
 
 describe('defineAnnotation', () => {
     test('returns a constructor producing frozen { name, args } annotations', () => {
@@ -159,48 +159,6 @@ describe('hasAnnotation', () => {
 
         // Act --------------
         var result = hasAnnotation(instance, Other);
-
-        // Assert --------------
-        expect(result).is.false;
-    });
-});
-
-describe('withAnnotations', () => {
-    test('the predicate is truthy when every listed annotation is present on the member', () => {
-        // Arrange --------------
-        var Route = defineAnnotation('Route');
-        var Auth = defineAnnotation('Auth');
-        var instance = { login() { } };
-        annotate([Route('api/auth'), Auth()], instance, 'login');
-        var predicate = withAnnotations([Route, Auth]);
-        var meta = {
-            thisRef: instance,
-            name: 'login',
-            descriptor: Object.getOwnPropertyDescriptor(instance, 'login'),
-        };
-
-        // Act --------------
-        var result = predicate(meta);
-
-        // Assert --------------
-        expect(result).is.true;
-    });
-
-    test('the predicate is falsy when a listed annotation is missing', () => {
-        // Arrange --------------
-        var Route = defineAnnotation('Route');
-        var Auth = defineAnnotation('Auth');
-        var instance = { login() { } };
-        annotate([Route('api/auth')], instance, 'login');
-        var predicate = withAnnotations([Route, Auth]);
-        var meta = {
-            thisRef: instance,
-            name: 'login',
-            descriptor: Object.getOwnPropertyDescriptor(instance, 'login'),
-        };
-
-        // Act --------------
-        var result = predicate(meta);
 
         // Assert --------------
         expect(result).is.false;
