@@ -652,3 +652,151 @@ describe('Aspect async method parity', () => {
         expect(result).toBe('recovered');
     });
 });
+
+describe('Aspect accessor pipeline', () => {
+    test('runs beforeGetter hooks in apply-list order', () => {
+        // Arrange --------------
+        var calls = [];
+        var instance = { get prop() { return 1; } };
+        var first = Aspect.accessor({ memberName: 'prop' }, {
+            beforeGetter: () => { calls.push('first'); },
+        });
+        var second = Aspect.accessor({ memberName: 'prop' }, {
+            beforeGetter: () => { calls.push('second'); },
+        });
+        var wrapped = Aspect.apply(instance, [first, second]);
+
+        // Act --------------
+        var value = wrapped.prop;
+
+        // Assert --------------
+        expect(value).toBe(1);
+        expect(calls).toEqual(['first', 'second']);
+    });
+
+    test('runs afterGetter hooks in reverse order', () => {
+        // Arrange --------------
+        var calls = [];
+        var instance = { get prop() { return 1; } };
+        var first = Aspect.accessor({ memberName: 'prop' }, {
+            afterGetter: () => { calls.push('first'); },
+        });
+        var second = Aspect.accessor({ memberName: 'prop' }, {
+            afterGetter: () => { calls.push('second'); },
+        });
+        var wrapped = Aspect.apply(instance, [first, second]);
+
+        // Act --------------
+        var value = wrapped.prop;
+
+        // Assert --------------
+        expect(value).toBe(1);
+        expect(calls).toEqual(['second', 'first']);
+    });
+
+    test('fires getter hooks on plain data property reads when memberName is absent', () => {
+        // Arrange --------------
+        var calls = [];
+        var instance = { value: 42 };
+        var aspect = Aspect.accessor({}, {
+            beforeGetter: meta => { calls.push(meta.name); },
+        });
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        var value = wrapped.value;
+
+        // Assert --------------
+        expect(value).toBe(42);
+        expect(calls).toEqual(['value']);
+    });
+
+    test('aroundGetter get() keeps the original value', () => {
+        // Arrange --------------
+        var calls = [];
+        var instance = { get prop() { return 'original'; } };
+        var aspect = Aspect.accessor({ memberName: 'prop' }, {
+            aroundGetter: (meta, get) => {
+                calls.push('around');
+                return get();
+            },
+        });
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        var value = wrapped.prop;
+
+        // Assert --------------
+        expect(calls).toEqual(['around']);
+        expect(value).toBe('original');
+    });
+
+    test('an aroundGetter return value overwrites the getter result', () => {
+        // Arrange --------------
+        var instance = { get prop() { return 'original'; } };
+        var aspect = Aspect.accessor({ memberName: 'prop' }, { aroundGetter: () => 'overwritten' });
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        var value = wrapped.prop;
+
+        // Assert --------------
+        expect(value).toBe('overwritten');
+    });
+
+    test('runs beforeSetter and afterSetter around the write', () => {
+        // Arrange --------------
+        var calls = [];
+        var instance = {
+            _v: 0,
+            get prop() { return this._v; },
+            set prop(v) { this._v = v; },
+        };
+        var aspect = Aspect.accessor({ memberName: 'prop' }, {
+            beforeSetter: (meta, value) => { calls.push(['before', value]); },
+            afterSetter: (meta, value) => { calls.push(['after', value]); },
+        });
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        wrapped.prop = 7;
+
+        // Assert --------------
+        expect(calls).toEqual([['before', 7], ['after', 7]]);
+        expect(instance.prop).toBe(7);
+    });
+
+    test('aroundSetter overwrites the stored value via set(newValue)', () => {
+        // Arrange --------------
+        var instance = { value: 0 };
+        var aspect = Aspect.accessor({ memberName: 'value' }, {
+            aroundSetter: (meta, set) => { set(99); },
+        });
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        wrapped.value = 7;
+
+        // Assert --------------
+        expect(instance.value).toBe(99);
+    });
+
+    test('provides thisRef, name and descriptor in the accessor meta', () => {
+        // Arrange --------------
+        var metas = [];
+        var instance = { value: 42 };
+        var aspect = Aspect.accessor({ memberName: 'value' }, {
+            beforeGetter: meta => { metas.push(meta); },
+        });
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        var value = wrapped.value;
+
+        // Assert --------------
+        expect(metas[0].thisRef).toBe(wrapped);
+        expect(metas[0].name).toBe('value');
+        expect(metas[0].descriptor)
+            .toEqual(Object.getOwnPropertyDescriptor(instance, 'value'));
+    });
+});
