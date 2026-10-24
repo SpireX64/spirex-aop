@@ -134,4 +134,46 @@ export function getAnnotations(classOrInstance, memberName) {
     var key = memberName === undefined ? $own : memberName;
     return readOnly(mergeAnnotations(getAnnotationChain(classOrInstance), key));
 }
+/**
+ * Matches one annotation reference (instance or constructor) against a list:
+ * a constructor matches by annotation name, an instance matches structurally.
+ * @param {readonly TAnnotation[]} list Annotation list.
+ * @param {TAnnotationOrCtor} item Annotation instance or constructor.
+ * @returns {boolean}
+ */
+function matchAnnotation(list, item) {
+    return list.some(
+        typeof item === 'function'
+            ? ann => ann.name === item.name
+            : ann => isSameAnnotation(ann, item),
+    );
+}
+
+/**
+ * Checks whether a class or instance carries the given annotation (by
+ * instance or constructor), respecting the inheritance merge.
+ * @param {object} classOrInstance Target class (constructor) or instance.
+ * @param {TAnnotationOrCtor} annotationOrCtor Annotation instance or constructor.
+ * @returns {boolean}
+ */
+export function hasAnnotation(classOrInstance, annotationOrCtor) {
+    if (classOrInstance == null) return false;
+    return matchAnnotation(
+        mergeAnnotations(getAnnotationChain(classOrInstance), $own),
+        annotationOrCtor,
+    );
+}
+
+/**
+ * Builds a predicate truthy only when every listed annotation is present on
+ * the member identified by the meta (respecting the inheritance merge).
+ * @param {readonly TAnnotationOrCtor[]} list Required annotations (instances or ctors).
+ * @returns {(meta: TAnnotationPredicateMeta) => boolean} The predicate.
+ */
+export function withAnnotations(list) {
+    return (meta) => {
+        var present = getAnnotations(meta.thisRef, meta.name);
+        return list.every(item => matchAnnotation(present, item));
+    };
+}
 // #endregion Annotations
