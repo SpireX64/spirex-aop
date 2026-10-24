@@ -72,13 +72,38 @@ describe('Aspect.annotate / Aspect.getAnnotations', () => {
         expect(Aspect.getAnnotations(instance, 'bar')).toEqual([]);
         expect(Aspect.getAnnotations(instance, 'foo')).toEqual([Tag('only-foo')]);
     });
+
+    test('accepts a single annotation object and returns it as a one-element array', () => {
+        // Arrange --------------
+        var Deprecated = defineAnnotation('Deprecated');
+        var instance = { doAction() { } };
+
+        // Act --------------
+        Aspect.annotate(instance, 'doAction', Deprecated('1.2.3'));
+
+        // Assert --------------
+        expect(Aspect.getAnnotations(instance, 'doAction')).toEqual([Deprecated('1.2.3')]);
+    });
+
+    test('a single annotation object is visible via method target meta', () => {
+        // Arrange --------------
+        var Deprecated = defineAnnotation('Deprecated');
+        var instance = { doAction() { } };
+        var meta = { thisRef: instance, methodRef: instance.doAction, params: [] };
+
+        // Act --------------
+        Aspect.annotate(instance, 'doAction', Deprecated('1.2.3'));
+
+        // Assert --------------
+        expect(Aspect.getAnnotations(meta)).toEqual([Deprecated('1.2.3')]);
+    });
 });
 
 describe('Aspect.method', () => {
     test('returns a frozen method aspect carrying the definition and selector', () => {
         // Arrange --------------
         var selector = { memberName: 'foo' };
-        var beforeCall = () => {};
+        var beforeCall = () => { };
         var definition = { displayName: 'LogMethod', beforeCall: beforeCall };
 
         // Act --------------
