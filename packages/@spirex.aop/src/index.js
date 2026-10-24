@@ -6,9 +6,6 @@
 var readOnly = Object.freeze;
 var isArr = Array.isArray;
 var getProto = Object.getPrototypeOf;
-var getOwnNames = Object.getOwnPropertyNames;
-var getOwnPropDesc = Object.getOwnPropertyDescriptor;
-var defineProps = Object.defineProperties;
 var rGet = Reflect.get;
 var rSet = Reflect.set;
 var len = (a) => a.length;
@@ -18,102 +15,10 @@ var len = (a) => a.length;
 // Internal state is hidden behind module-private symbols: they are reachable
 // only via Object.getOwnPropertySymbols, keeping them out of the user's way.
 var $selector = Symbol(); // aspect → its TMemberSelector
-var $annotationType = Symbol(); // marks annotation ctors and instances
-var $annotations = Symbol(); // instance → per-member annotation lists (null-proto map)
 var $proxy = Symbol(); // target → its Aspect Proxy (identity marker for isWrapped)
 var $aspects = Symbol(); // target → currently applied aspects, in apply-list order
+var $matched = Symbol(); // target → per-member matched-aspect memo (apply-time)
 // #endregion Symbols
-
-// #region Annotations
-/**
- * Defines an annotation type.
- * @param {string} name Annotation name.
- * @returns {TAnnotationCtor<any>} Constructor producing frozen `{ name, args }` annotations.
- */
-export function defineAnnotation(name) {
-    var annotationFactory = (...args) =>
-        readOnly(
-            defineProps({ name, args }, { [$annotationType]: { value: true } }),
-        );
-    return defineProps(annotationFactory, {
-        [$annotationType]: { value: true },
-        name: { value: name },
-    });
-}
-
-/**
- * Attaches annotations to one member of an instance (per-member storage —
- * annotations of one member never leak onto another).
- * @param {object} instance Target instance.
- * @param {string} key Member name.
- * @param {TAnnotation | readonly TAnnotation[]} annotations Annotation(s) to attach;
- *   a lone annotation is normalized to a one-element array.
- */
-function annotateMember(instance, key, annotations) {
-    if (annotations != null && !isArr(annotations)) annotations = [annotations];
-    if (
-        instance == null ||
-        !(key in instance) ||
-        !isArr(annotations) ||
-        len(annotations) === 0
-    )
-        return;
-
-    var store = instance[$annotations];
-    // Null-prototype map: prototype keys (e.g. 'constructor') must not read as annotations.
-    if (!store) store = instance[$annotations] = Object.create(null);
-
-    var list = store[key];
-    store[key] = list ? list.concat(annotations) : annotations.slice();
-}
-
-/**
- * Finds the name of the member whose value is the given method reference,
- * walking the prototype chain (data descriptors only, getters not triggered).
- * @param {object} instance Target instance.
- * @param {Function} methodRef Method reference to locate.
- * @returns {string | undefined} The member name, if found.
- */
-function findMemberKey(instance, methodRef) {
-    var obj = instance;
-    while (obj != null) {
-        var names = getOwnNames(obj);
-        for (var i = 0; i < len(names); i++) {
-            var desc = getOwnPropDesc(obj, names[i]);
-            if (desc && desc.value === methodRef) return names[i];
-        }
-        obj = getProto(obj);
-    }
-    return undefined;
-}
-
-/**
- * Returns the annotations of a member. Two overloads:
- * `getAnnotations(instance, key)` and `getAnnotations(meta)` where meta is a
- * method target (`methodRef` is resolved to a member name) or an accessor
- * target (`name` is taken directly).
- * @param {object | TMethodAspectTarget | TAccessorAspectTarget} target Instance or hook meta.
- * @param {string} [key] Member name (instance overload).
- * @returns {readonly TAnnotation[]} The member's annotations (empty when none).
- */
-function getAnnotations(target, key) {
-    var instance, memberKey;
-    if (key !== undefined) {
-        instance = target;
-        memberKey = key;
-    } else if (typeof target.name === "string") {
-        instance = target.thisRef;
-        memberKey = target.name;
-    } else {
-        instance = target.thisRef;
-        memberKey = findMemberKey(instance, target.methodRef);
-    }
-
-    var store = instance != null ? instance[$annotations] : undefined;
-    var list = store != null ? store[memberKey] : undefined;
-    return list ? readOnly(list.slice()) : [];
-}
-// #endregion Annotations
 
 // #region Aspects
 /**
@@ -156,38 +61,6 @@ function isMatchPattern(pattern, value) {
 }
 
 /**
- * Structural equality of two annotations: same name and same args.
- * @param {TAnnotation} a
- * @param {TAnnotation} b
- * @returns {boolean}
- */
-function isSameAnnotation(a, b) {
-    if (a === b) return true;
-    if (a.name !== b.name || len(a.args) !== len(b.args)) return false;
-    for (var i = 0; i < len(a.args); i++)
-        if (a.args[i] !== b.args[i]) return false;
-    return true;
-}
-
-/**
- * Matches a member's annotations against an `annotations` selector entry:
- * a constructor matches by annotation name, an instance matches structurally.
- * @param {TAnnotationOrCtor | readonly TAnnotationOrCtor[]} selector Selector entry(ies).
- * @param {readonly TAnnotation[]} memberAnnotations The member's annotations.
- * @returns {boolean}
- */
-function isMatchAnnotations(selector, memberAnnotations) {
-    var selectors = isArr(selector) ? selector : [selector];
-    return selectors.some((item) =>
-        memberAnnotations.some(
-            typeof item === "function"
-                ? (ann) => ann.name === item.name
-                : (ann) => isSameAnnotation(ann, item),
-        ),
-    );
-}
-
-/**
  * Lists all member names of an instance — own properties AND prototype-chain
  * members (plain data properties included; `constructor` and Object.prototype
  * excluded). Symbol-keyed internal state never appears here.
@@ -198,7 +71,7 @@ function getMemberNames(instance) {
     var names = [];
     var obj = instance;
     while (obj != null && obj !== Object.prototype) {
-        var ownNames = getOwnNames(obj);
+        var ownNames = Object.getOwnPropertyNames(obj);
         for (var i = 0; i < len(ownNames); i++) {
             var name = ownNames[i];
             if (name !== "constructor" && names.indexOf(name) < 0)
@@ -218,7 +91,7 @@ function getMemberNames(instance) {
 function findMemberDescriptor(instance, name) {
     var obj = instance;
     while (obj != null) {
-        var desc = getOwnPropDesc(obj, name);
+        var desc = Object.getOwnPropertyDescriptor(obj, name);
         if (desc) return desc;
         obj = getProto(obj);
     }
@@ -228,8 +101,8 @@ function findMemberDescriptor(instance, name) {
 /**
  * Checks one member against an aspect's selector: method aspects require a
  * function member; `memberName` restricts by name pattern (absent = all
- * members, including plain data properties); `annotations` restricts to
- * annotated members.
+ * members, including plain data properties); `predicate` receives
+ * `{ thisRef, name, descriptor }` and must be truthy.
  * @param {object} instance Target instance.
  * @param {string} name Member name.
  * @param {TAnyAspect} aspect The aspect.
@@ -237,18 +110,16 @@ function findMemberDescriptor(instance, name) {
  * @returns {boolean}
  */
 function isMatchMember(instance, name, aspect, selector) {
-    if (aspect.$aspect === "m") {
-        var desc = findMemberDescriptor(instance, name);
-        if (!desc || typeof desc.value !== "function") return false;
-    }
+    var desc;
+    if (aspect.$aspect === "m" || selector.predicate)
+        desc = findMemberDescriptor(instance, name);
+    if (aspect.$aspect === "m" && (!desc || typeof desc.value !== "function"))
+        return false;
     if (selector.memberName && !isMatchPattern(selector.memberName, name))
         return false;
     if (
-        selector.annotations &&
-        !isMatchAnnotations(
-            selector.annotations,
-            getAnnotations(instance, name),
-        )
+        selector.predicate &&
+        !selector.predicate({ thisRef: instance, name: name, descriptor: desc })
     )
         return false;
     return true;
@@ -278,33 +149,48 @@ function isMatchAspect(instance, aspect) {
 
 // #region Weaving
 /**
- * Collects the method aspects currently matching a member, in apply-list order.
- * @param {object} target Proxy target.
- * @param {string} name Member name.
- * @returns {TAnyAspect[]} Matching method aspects.
+ * Builds the per-member match memo: member name → matched aspects split by
+ * type (`m`/`a`), in apply-list order. Computed at apply/re-apply time only —
+ * selector and predicate evaluation stays off the proxy hot path.
+ * @param {object} instance Target instance.
+ * @param {readonly TAnyAspect[]} applied Currently applied aspects.
+ * @returns {object} The memo (null-proto map).
  */
-function getMethodHooks(target, name) {
-    var aspects = target[$aspects] || [];
-    return aspects.filter(
-        (aspect) =>
-            aspect.$aspect === "m" &&
-            isMatchMember(target, name, aspect, aspect[$selector] || {}),
-    );
+function buildMatchMemo(instance, applied) {
+    var memo = Object.create(null);
+    for (var name of getMemberNames(instance)) {
+        var entry = { m: [], a: [] };
+        for (var aspect of applied) {
+            if (isMatchMember(instance, name, aspect, aspect[$selector] || {}))
+                entry[aspect.$aspect].push(aspect);
+        }
+        if (len(entry.m) > 0 || len(entry.a) > 0) memo[name] = entry;
+    }
+    return memo;
 }
 
 /**
- * Collects the accessor aspects currently matching a member, in apply-list order.
+ * Reads the memoized method aspects matching a member (apply-list order).
  * @param {object} target Proxy target.
  * @param {string} name Member name.
- * @returns {TAnyAspect[]} Matching accessor aspects.
+ * @returns {TAnyAspect[]} Matching method aspects (empty when none).
+ */
+function getMethodHooks(target, name) {
+    var memo = target[$matched];
+    var entry = memo != null ? memo[name] : undefined;
+    return entry ? entry.m : [];
+}
+
+/**
+ * Reads the memoized accessor aspects matching a member (apply-list order).
+ * @param {object} target Proxy target.
+ * @param {string} name Member name.
+ * @returns {TAnyAspect[]} Matching accessor aspects (empty when none).
  */
 function getAccessorHooks(target, name) {
-    var aspects = target[$aspects] || [];
-    return aspects.filter(
-        (aspect) =>
-            aspect.$aspect === "a" &&
-            isMatchMember(target, name, aspect, aspect[$selector] || {}),
-    );
+    var memo = target[$matched];
+    var entry = memo != null ? memo[name] : undefined;
+    return entry ? entry.a : [];
 }
 
 /**
@@ -538,9 +424,10 @@ function getAspects(instance) {
 /**
  * Applies aspects to an instance. Returns the original object untouched when
  * no aspect matches any member. Otherwise a single Aspect Proxy per object:
- * re-`apply` re-checks selectors and updates the symbol-hidden applied-aspects
- * list in place instead of creating a new proxy; the same aspect instance is
- * never added twice; an aspect matching no member is ignored.
+ * re-`apply` re-checks selectors, updates the symbol-hidden applied-aspects
+ * list in place, and rebuilds the per-member match memo instead of creating
+ * a new proxy; the same aspect instance is never added twice; an aspect
+ * matching no member is ignored.
  * @param {object} instance Target instance (or its existing Aspect Proxy).
  * @param {readonly TAnyAspect[]} aspects Aspects to apply.
  * @returns {object} The Aspect Proxy, or the original instance when nothing matched.
@@ -558,22 +445,36 @@ function applyAspects(instance, aspects) {
     var existingProxy = instance[$proxy];
     if (existingProxy) {
         instance[$aspects] = applied;
+        instance[$matched] = buildMatchMemo(instance, applied);
         return existingProxy;
     }
 
     var proxyInstance = new Proxy(instance, aspectProxyHandlers);
     instance[$proxy] = proxyInstance;
     instance[$aspects] = applied;
+    instance[$matched] = buildMatchMemo(instance, applied);
     return proxyInstance;
 }
 // #endregion Weaving
 
 // #region Public API
+// The annotations API lives in ./annotations.js (standalone subpath) and is
+// re-exported here for convenience; the aspect runtime never reads it.
+export {
+    annotate,
+    defineAnnotation,
+    getAnnotations,
+    hasAnnotation,
+    withAnnotations,
+} from "./annotations.js";
+
+/**
+ * The aspect API surface (see `IAspect` in `index.d.ts`).
+ * @type {IAspect}
+ */
 export var Aspect = readOnly({
     method: factoryAspect("m"),
     accessor: factoryAspect("a"),
-    annotate: annotateMember,
-    getAnnotations: getAnnotations,
     apply: applyAspects,
     isWrapped: isWrapped,
     getAspects: getAspects,
