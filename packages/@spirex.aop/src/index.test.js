@@ -498,7 +498,7 @@ describe('Aspect method pipeline', () => {
     test('provides thisRef, methodRef and params in the method meta', () => {
         // Arrange --------------
         var metas = [];
-        var instance = { foo(a, b) {} };
+        var instance = { foo() { } };
         var aspect = Aspect.method({ memberName: 'foo' }, { beforeCall: meta => metas.push(meta) });
         var wrapped = Aspect.apply(instance, [aspect]);
 
@@ -525,7 +525,7 @@ describe('Aspect method onThrow', () => {
         var wrapped = Aspect.apply(instance, [aspect]);
 
         // Act --------------
-        try { wrapped.foo(); } catch (e) { /* expected */ }
+        try { wrapped.foo(); } catch { /* expected */ }
 
         // Assert --------------
         expect(calls).toEqual([['onThrow', error]]);
@@ -545,7 +545,7 @@ describe('Aspect method onThrow', () => {
         var wrapped = Aspect.apply(instance, [first, second]);
 
         // Act --------------
-        try { wrapped.foo(); } catch (e) { /* expected */ }
+        try { wrapped.foo(); } catch { /* expected */ }
 
         // Assert --------------
         expect(calls).toEqual([['second', error], ['first', error]]);
@@ -816,7 +816,7 @@ describe('Aspect accessor pipeline', () => {
         var wrapped = Aspect.apply(instance, [aspect]);
 
         // Act --------------
-        var value = wrapped.value;
+        wrapped.value;
 
         // Assert --------------
         expect(metas[0].thisRef).toBe(wrapped);
@@ -839,7 +839,7 @@ describe('Aspect accessor onThrow', () => {
         var wrapped = Aspect.apply(instance, [aspect]);
 
         // Act --------------
-        try { var value = wrapped.prop; } catch (e) { /* expected */ }
+        try { wrapped.prop; } catch { /* expected */ }
 
         // Assert --------------
         expect(calls).toEqual([['onGetterThrows', error]]);
@@ -859,7 +859,7 @@ describe('Aspect accessor onThrow', () => {
         var wrapped = Aspect.apply(instance, [first, second]);
 
         // Act --------------
-        try { var value = wrapped.prop; } catch (e) { /* expected */ }
+        try { wrapped.prop; } catch { /* expected */ }
 
         // Assert --------------
         expect(calls).toEqual([['second', error], ['first', error]]);
@@ -877,7 +877,7 @@ describe('Aspect accessor onThrow', () => {
 
         // Act --------------
         var caught;
-        try { var value = wrapped.prop; } catch (e) { caught = e; }
+        try { wrapped.prop; } catch (e) { caught = e; }
 
         // Assert --------------
         expect(calls).toEqual(['onGetterThrows']);
@@ -909,7 +909,7 @@ describe('Aspect accessor onThrow', () => {
         var wrapped = Aspect.apply(instance, [aspect]);
 
         // Act --------------
-        try { wrapped.prop = 1; } catch (e) { /* expected */ }
+        try { wrapped.prop = 1; } catch { /* expected */ }
 
         // Assert --------------
         expect(calls).toEqual([['onSetterThrows', error]]);

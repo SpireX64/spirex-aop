@@ -1,8 +1,15 @@
 {
-    "parser": "typescript",
     "tabWidth": 4,
     "quoteProps": "consistent",
     "trailingComma": "all",
     "bracketSpacing": true,
-    "semi": true
+    "semi": true,
+    "overrides": [
+        {
+            "files": "*.{ts,tsx,mts,cts}",
+            "options": {
+                "parser": "typescript"
+            }
+        }
+    ]
 }

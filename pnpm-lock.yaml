@@ -208,9 +208,14 @@ importers:
       tslib:
         specifier: 2.8.1
         version: 2.8.1
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
       vitest:
         specifier: 4.1.4
         version: 4.1.4(@types/node@26.6.5)(@vitest/coverage-istanbul@3.1.2)(@vitest/coverage-v8@4.1.4)(vite@8.3.4(@types/node@26.6.5)(terser@5.51.2))
+
+  packages/@spirex.aop: {}
 
 packages:
 

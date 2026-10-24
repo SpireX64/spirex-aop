@@ -9,6 +9,8 @@ var getProto = Object.getPrototypeOf;
 var getOwnNames = Object.getOwnPropertyNames;
 var getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var defineProps = Object.defineProperties;
+var rGet = Reflect.get;
+var rSet = Reflect.set;
 var len = (a) => a.length;
 // #endregion Shortcuts
 
@@ -360,7 +362,7 @@ function callSetterPipeline(hooks, meta, value, write) {
 }
 
 /**
- * Hybrid PostSharp-style error model: ALL error hooks run in reverse aspect
+ * Hybrid error model: All error hooks run in reverse aspect
  * order with the thrown error; a re-throwing hook does not stop the chain;
  * a hook returning a value marks the error handled and substitutes the result;
  * otherwise the original error propagates.
@@ -383,7 +385,7 @@ function runErrorHooks(hooks, hookName, meta, error) {
                     result = handledValue;
                     handled = true;
                 }
-            } catch (hookError) { /* a re-throwing hook does not stop the chain */ }
+            } catch { /* a re-throwing hook does not stop the chain */ }
         }
     }
     if (!handled) throw error;
@@ -449,17 +451,10 @@ function callMethodPipeline(hooks, thisRef, methodRef, params) {
     return result;
 }
 
-/**
- * Aspect Proxy traps. `get`: accessor pipelines run first (the pipeline's read
- * thunk is the single original read — pre-reading would invoke real getters
- * twice), then method pipelines for hooked function members; anything else
- * (symbols, `constructor`, unhooked members) forwards untouched. `set`:
- * hooked members go through the setter pipeline; the rest forwards.
- */
 var aspectProxyHandlers = {
     get(target, key, receiver) {
         if (typeof key !== 'string' || key === 'constructor')
-            return Reflect.get(target, key, receiver);
+            return rGet(target, key, receiver);
 
         var accessorHooks = getAccessorHooks(target, key);
         if (len(accessorHooks) > 0) {
@@ -469,7 +464,7 @@ var aspectProxyHandlers = {
                 descriptor: findMemberDescriptor(target, key),
             };
             return callGetterPipeline(
-                accessorHooks, meta, () => Reflect.get(target, key, receiver),
+                accessorHooks, meta, () => rGet(target, key, receiver),
             );
         }
 
@@ -481,37 +476,25 @@ var aspectProxyHandlers = {
     },
     set(target, key, value, receiver) {
         if (typeof key !== 'string' || key === 'constructor')
-            return Reflect.set(target, key, value, receiver);
+            return rSet(target, key, value, receiver);
 
         var hooks = getAccessorHooks(target, key);
-        if (len(hooks) === 0) return Reflect.set(target, key, value, receiver);
+        if (len(hooks) === 0) return rSet(target, key, value, receiver);
 
         var meta = {
             thisRef: receiver,
             name: key,
             descriptor: findMemberDescriptor(target, key),
         };
-        callSetterPipeline(hooks, meta, value, v => Reflect.set(target, key, v, receiver));
+        callSetterPipeline(hooks, meta, value, v => rSet(target, key, v, receiver));
         return true;
     },
 };
 
-/**
- * Checks whether an instance is an Aspect Proxy. The target stores its proxy
- * under `$proxy`; reading it through the proxy forwards to the target, so only
- * the proxy itself satisfies `instance[$proxy] === instance`.
- * @param {unknown} instance The instance to check.
- * @returns {boolean}
- */
 function isWrapped(instance) {
     return instance != null && instance[$proxy] === instance;
 }
 
-/**
- * Returns the aspects currently applied to an instance, in apply-list order.
- * @param {unknown} instance The (possibly wrapped) instance.
- * @returns {readonly TAnyAspect[]}
- */
 function getAspects(instance) {
     var applied = instance != null ? instance[$aspects] : undefined;
     return applied ? readOnly(applied.slice()) : [];
@@ -551,10 +534,6 @@ function applyAspects(instance, aspects) {
 // #endregion Weaving
 
 // #region Public API
-/**
- * The aspect API surface (see `IAspect` in `index.d.ts`).
- * @type {IAspect}
- */
 export var Aspect = readOnly({
     method: factoryAspect('m'),
     accessor: factoryAspect('a'),

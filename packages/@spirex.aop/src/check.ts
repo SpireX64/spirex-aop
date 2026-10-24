@@ -5,7 +5,7 @@ import { Aspect, defineAnnotation } from './index';
 export const WatchLog = defineAnnotation('WatchLog');
 export const Deprecated = defineAnnotation<[since: string]>('Deprecated');
 
-export const LogMethodAspect = Aspect.method({ name: /trigger/i }, {
+export const LogMethodAspect = Aspect.method({ memberName: /trigger/i }, {
     afterCall: () => {
 
     },
