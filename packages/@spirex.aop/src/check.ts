@@ -1,6 +1,7 @@
 // istanbul ignore file
 
 import { Aspect, defineAnnotation } from "./index";
+import { annotate } from "./annotations";
 
 export const WatchLog = defineAnnotation("WatchLog");
 export const Deprecated = defineAnnotation<[since: string]>("Deprecated");
@@ -15,8 +16,8 @@ export const LogMethodAspect = Aspect.method(
 
 export class Sample {
     public constructor() {
-        Aspect.annotate(this, "trigger", [WatchLog()]);
-        Aspect.annotate(this, "percent", [Deprecated("1.3.5")]);
+        annotate([WatchLog()], this, "trigger");
+        annotate([Deprecated("1.3.5")], this, "percent");
     }
 
     public trigger(): void {}
