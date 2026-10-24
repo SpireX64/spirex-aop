@@ -10,16 +10,6 @@ export type TAnnotationCtor<Args extends any[]> = (...args: Args) => TAnnotation
 /** Annotation reference: an annotation instance or its constructor. */
 export type TAnnotationOrCtor = TAnnotationCtor<any> | TAnnotation;
 
-/** Metadata passed to annotation predicates (`withAnnotations`). */
-export type TAnnotationPredicateMeta = {
-    /** The wrapped instance the member was accessed on. */
-    thisRef: unknown;
-    /** Member name. */
-    name: string;
-    /** The member's property descriptor. */
-    descriptor: PropertyDescriptor;
-};
-
 /**
  * Defines an annotation type.
  * @param name Annotation name.
@@ -51,14 +41,6 @@ export declare function getAnnotations(classOrInstance: object): readonly TAnnot
  * nearest-first, deduplicated by name+args.
  */
 export declare function getAnnotations(classOrInstance: object, memberName: string): readonly TAnnotation[];
-
-/**
- * Builds a predicate truthy only when every listed annotation is present on
- * the member identified by the meta (respecting the inheritance merge).
- */
-export declare function withAnnotations(
-    list: readonly TAnnotationOrCtor[],
-): (meta: TAnnotationPredicateMeta) => boolean;
 
 /**
  * Checks whether a class or instance carries the given annotation (by
