@@ -2,7 +2,9 @@
     "name": "@spirex/aop",
     "version": "1.0.0",
     "description": "",
-    "keywords": ["spirex"],
+    "keywords": [
+        "spirex"
+    ],
     "license": "MIT",
     "private": false,
     "sideEffects": false,

@@ -1,33 +1,31 @@
 // istanbul ignore file
 
-import { Aspect, defineAnnotation } from './index';
+import { Aspect, defineAnnotation } from "./index";
 
-export const WatchLog = defineAnnotation('WatchLog');
-export const Deprecated = defineAnnotation<[since: string]>('Deprecated');
+export const WatchLog = defineAnnotation("WatchLog");
+export const Deprecated = defineAnnotation<[since: string]>("Deprecated");
 
-export const LogMethodAspect = Aspect.method({ memberName: /trigger/i }, {
-    afterCall: () => {
-
+export const LogMethodAspect = Aspect.method(
+    { memberName: /trigger/i },
+    {
+        afterCall: () => {},
+        onThrow: () => {},
     },
-    onThrow: () => { },
-})
+);
 
 export class Sample {
     public constructor() {
-        Aspect.annotate(this, 'trigger', [WatchLog()]);
-        Aspect.annotate(this, 'percent', [Deprecated('1.3.5')]);
+        Aspect.annotate(this, "trigger", [WatchLog()]);
+        Aspect.annotate(this, "percent", [Deprecated("1.3.5")]);
     }
 
-    public trigger(): void {
-    }
+    public trigger(): void {}
 
     public get percent(): number {
-        return 2
+        return 2;
     }
 
-    public set percent(value: number) {
-
-    }
+    public set percent(value: number) {}
 }
 
 const sampleInst = Aspect.apply(new Sample(), [LogMethodAspect]);

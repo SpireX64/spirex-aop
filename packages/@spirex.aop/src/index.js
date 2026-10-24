@@ -31,10 +31,10 @@ var $aspects = Symbol(); // target → currently applied aspects, in apply-list 
  * @returns {TAnnotationCtor<any>} Constructor producing frozen `{ name, args }` annotations.
  */
 export function defineAnnotation(name) {
-    var annotationFactory = (...args) => readOnly(defineProps(
-        { name, args },
-        { [$annotationType]: { value: true } },
-    ));
+    var annotationFactory = (...args) =>
+        readOnly(
+            defineProps({ name, args }, { [$annotationType]: { value: true } }),
+        );
     return defineProps(annotationFactory, {
         [$annotationType]: { value: true },
         name: { value: name },
@@ -51,11 +51,13 @@ export function defineAnnotation(name) {
  */
 function annotateMember(instance, key, annotations) {
     if (annotations != null && !isArr(annotations)) annotations = [annotations];
-    if (instance == null
-        || !(key in instance)
-        || !isArr(annotations)
-        || len(annotations) === 0
-    ) return;
+    if (
+        instance == null ||
+        !(key in instance) ||
+        !isArr(annotations) ||
+        len(annotations) === 0
+    )
+        return;
 
     var store = instance[$annotations];
     // Null-prototype map: prototype keys (e.g. 'constructor') must not read as annotations.
@@ -99,7 +101,7 @@ function getAnnotations(target, key) {
     if (key !== undefined) {
         instance = target;
         memberKey = key;
-    } else if (typeof target.name === 'string') {
+    } else if (typeof target.name === "string") {
         instance = target.thisRef;
         memberKey = target.name;
     } else {
@@ -121,11 +123,12 @@ function getAnnotations(target, key) {
  *   Factory producing a frozen aspect: the definition fields, the `$aspect`
  *   type tag, and the selector hidden under the `$selector` symbol.
  */
-var factoryAspect = (aspectType) => (selector, definition) => readOnly({
-    ...definition,
-    $aspect: aspectType,
-    [$selector]: selector,
-});
+var factoryAspect = (aspectType) => (selector, definition) =>
+    readOnly({
+        ...definition,
+        $aspect: aspectType,
+        [$selector]: selector,
+    });
 // #endregion Aspects
 
 // #region Matching
@@ -136,10 +139,8 @@ var factoryAspect = (aspectType) => (selector, definition) => readOnly({
  * @returns {boolean}
  */
 function matchStringOrRegex(strOrRegex, value) {
-    if (strOrRegex instanceof RegExp)
-        return strOrRegex.test(value)
-    else
-        return strOrRegex === value;
+    if (strOrRegex instanceof RegExp) return strOrRegex.test(value);
+    else return strOrRegex === value;
 }
 
 /**
@@ -149,7 +150,8 @@ function matchStringOrRegex(strOrRegex, value) {
  * @returns {boolean}
  */
 function isMatchPattern(pattern, value) {
-    if (isArr(pattern)) return pattern.some(item => matchStringOrRegex(item, value));
+    if (isArr(pattern))
+        return pattern.some((item) => matchStringOrRegex(item, value));
     return matchStringOrRegex(pattern, value);
 }
 
@@ -176,11 +178,13 @@ function isSameAnnotation(a, b) {
  */
 function isMatchAnnotations(selector, memberAnnotations) {
     var selectors = isArr(selector) ? selector : [selector];
-    return selectors.some(item => memberAnnotations.some(
-        typeof item === 'function'
-            ? ann => ann.name === item.name
-            : ann => isSameAnnotation(ann, item),
-    ));
+    return selectors.some((item) =>
+        memberAnnotations.some(
+            typeof item === "function"
+                ? (ann) => ann.name === item.name
+                : (ann) => isSameAnnotation(ann, item),
+        ),
+    );
 }
 
 /**
@@ -197,7 +201,8 @@ function getMemberNames(instance) {
         var ownNames = getOwnNames(obj);
         for (var i = 0; i < len(ownNames); i++) {
             var name = ownNames[i];
-            if (name !== 'constructor' && names.indexOf(name) < 0) names.push(name);
+            if (name !== "constructor" && names.indexOf(name) < 0)
+                names.push(name);
         }
         obj = getProto(obj);
     }
@@ -232,14 +237,20 @@ function findMemberDescriptor(instance, name) {
  * @returns {boolean}
  */
 function isMatchMember(instance, name, aspect, selector) {
-    if (aspect.$aspect === 'm') {
+    if (aspect.$aspect === "m") {
         var desc = findMemberDescriptor(instance, name);
-        if (!desc || typeof desc.value !== 'function') return false;
+        if (!desc || typeof desc.value !== "function") return false;
     }
-    if (selector.memberName && !isMatchPattern(selector.memberName, name)) return false;
-    if (selector.annotations
-        && !isMatchAnnotations(selector.annotations, getAnnotations(instance, name))
-    ) return false;
+    if (selector.memberName && !isMatchPattern(selector.memberName, name))
+        return false;
+    if (
+        selector.annotations &&
+        !isMatchAnnotations(
+            selector.annotations,
+            getAnnotations(instance, name),
+        )
+    )
+        return false;
     return true;
 }
 
@@ -253,10 +264,15 @@ function isMatchMember(instance, name, aspect, selector) {
 function isMatchAspect(instance, aspect) {
     var selector = aspect[$selector] || {};
 
-    if (selector.className && !isMatchPattern(selector.className, instance.constructor.name))
+    if (
+        selector.className &&
+        !isMatchPattern(selector.className, instance.constructor.name)
+    )
         return false;
 
-    return getMemberNames(instance).some(name => isMatchMember(instance, name, aspect, selector));
+    return getMemberNames(instance).some((name) =>
+        isMatchMember(instance, name, aspect, selector),
+    );
 }
 // #endregion Matching
 
@@ -270,8 +286,9 @@ function isMatchAspect(instance, aspect) {
 function getMethodHooks(target, name) {
     var aspects = target[$aspects] || [];
     return aspects.filter(
-        aspect => aspect.$aspect === 'm'
-            && isMatchMember(target, name, aspect, aspect[$selector] || {}),
+        (aspect) =>
+            aspect.$aspect === "m" &&
+            isMatchMember(target, name, aspect, aspect[$selector] || {}),
     );
 }
 
@@ -284,8 +301,9 @@ function getMethodHooks(target, name) {
 function getAccessorHooks(target, name) {
     var aspects = target[$aspects] || [];
     return aspects.filter(
-        aspect => aspect.$aspect === 'a'
-            && isMatchMember(target, name, aspect, aspect[$selector] || {}),
+        (aspect) =>
+            aspect.$aspect === "a" &&
+            isMatchMember(target, name, aspect, aspect[$selector] || {}),
     );
 }
 
@@ -308,13 +326,17 @@ function callGetterPipeline(hooks, meta, read) {
     var get = read;
     for (var i = len(hooks) - 1; i >= 0; i--) {
         var aroundGetter = hooks[i].aroundGetter;
-        if (aroundGetter) get = ((hook, next) => () => hook(meta, next))(aroundGetter, get);
+        if (aroundGetter)
+            get = (
+                (hook, next) => () =>
+                    hook(meta, next)
+            )(aroundGetter, get);
     }
     var result;
     try {
         result = get();
     } catch (error) {
-        return runErrorHooks(hooks, 'onGetterThrows', meta, error);
+        return runErrorHooks(hooks, "onGetterThrows", meta, error);
     }
 
     for (var j = len(hooks) - 1; j >= 0; j--) {
@@ -346,12 +368,16 @@ function callSetterPipeline(hooks, meta, value, write) {
     };
     for (var i = len(hooks) - 1; i >= 0; i--) {
         var aroundSetter = hooks[i].aroundSetter;
-        if (aroundSetter) set = ((hook, next) => () => hook(meta, next))(aroundSetter, set);
+        if (aroundSetter)
+            set = (
+                (hook, next) => () =>
+                    hook(meta, next)
+            )(aroundSetter, set);
     }
     try {
         set(value);
     } catch (error) {
-        runErrorHooks(hooks, 'onSetterThrows', meta, error);
+        runErrorHooks(hooks, "onSetterThrows", meta, error);
         return;
     }
 
@@ -385,7 +411,9 @@ function runErrorHooks(hooks, hookName, meta, error) {
                     result = handledValue;
                     handled = true;
                 }
-            } catch { /* a re-throwing hook does not stop the chain */ }
+            } catch {
+                /* a re-throwing hook does not stop the chain */
+            }
         }
     }
     if (!handled) throw error;
@@ -428,23 +456,27 @@ function callMethodPipeline(hooks, thisRef, methodRef, params) {
     var proceed = () => methodRef.apply(thisRef, params);
     for (var i = len(hooks) - 1; i >= 0; i--) {
         var around = hooks[i].aroundCall;
-        if (around) proceed = ((hook, next) => () => hook(meta, next))(around, proceed);
+        if (around)
+            proceed = (
+                (hook, next) => () =>
+                    hook(meta, next)
+            )(around, proceed);
     }
 
     var result;
     try {
         result = proceed();
     } catch (error) {
-        return runErrorHooks(hooks, 'onThrow', meta, error);
+        return runErrorHooks(hooks, "onThrow", meta, error);
     }
 
     if (result instanceof Promise)
         return result.then(
-            value => {
+            (value) => {
                 runMethodAfterHooks(hooks, meta, value);
                 return value;
             },
-            reason => runErrorHooks(hooks, 'onThrow', meta, reason),
+            (reason) => runErrorHooks(hooks, "onThrow", meta, reason),
         );
 
     runMethodAfterHooks(hooks, meta, result);
@@ -453,7 +485,7 @@ function callMethodPipeline(hooks, thisRef, methodRef, params) {
 
 var aspectProxyHandlers = {
     get(target, key, receiver) {
-        if (typeof key !== 'string' || key === 'constructor')
+        if (typeof key !== "string" || key === "constructor")
             return rGet(target, key, receiver);
 
         var accessorHooks = getAccessorHooks(target, key);
@@ -463,19 +495,20 @@ var aspectProxyHandlers = {
                 name: key,
                 descriptor: findMemberDescriptor(target, key),
             };
-            return callGetterPipeline(
-                accessorHooks, meta, () => rGet(target, key, receiver),
+            return callGetterPipeline(accessorHooks, meta, () =>
+                rGet(target, key, receiver),
             );
         }
 
         var value = Reflect.get(target, key, receiver);
-        if (typeof value !== 'function') return value;
+        if (typeof value !== "function") return value;
         var methodHooks = getMethodHooks(target, key);
         if (len(methodHooks) === 0) return value;
-        return (...args) => callMethodPipeline(methodHooks, receiver, value, args);
+        return (...args) =>
+            callMethodPipeline(methodHooks, receiver, value, args);
     },
     set(target, key, value, receiver) {
-        if (typeof key !== 'string' || key === 'constructor')
+        if (typeof key !== "string" || key === "constructor")
             return rSet(target, key, value, receiver);
 
         var hooks = getAccessorHooks(target, key);
@@ -486,7 +519,9 @@ var aspectProxyHandlers = {
             name: key,
             descriptor: findMemberDescriptor(target, key),
         };
-        callSetterPipeline(hooks, meta, value, v => rSet(target, key, v, receiver));
+        callSetterPipeline(hooks, meta, value, (v) =>
+            rSet(target, key, v, receiver),
+        );
         return true;
     },
 };
@@ -535,8 +570,8 @@ function applyAspects(instance, aspects) {
 
 // #region Public API
 export var Aspect = readOnly({
-    method: factoryAspect('m'),
-    accessor: factoryAspect('a'),
+    method: factoryAspect("m"),
+    accessor: factoryAspect("a"),
     annotate: annotateMember,
     getAnnotations: getAnnotations,
     apply: applyAspects,
