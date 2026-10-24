@@ -33,15 +33,15 @@
                 "default": "./dist/index.js"
             }
         },
-        "./in-memory": {
+        "./annotations": {
             "import": {
-                "default": "./dist/in-memory.mjs"
+                "default": "./dist/annotations.mjs"
             },
             "require": {
-                "default": "./dist/in-memory.cjs"
+                "default": "./dist/annotations.cjs"
             },
             "default": {
-                "default": "./dist/in-memory.js"
+                "default": "./dist/annotations.js"
             }
         }
     },
