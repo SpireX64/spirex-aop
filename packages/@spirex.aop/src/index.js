@@ -44,9 +44,11 @@ export function defineAnnotation(name) {
  * annotations of one member never leak onto another).
  * @param {object} instance Target instance.
  * @param {string} key Member name.
- * @param {readonly TAnnotation[]} annotations Annotations to attach.
+ * @param {TAnnotation | readonly TAnnotation[]} annotations Annotation(s) to attach;
+ *   a lone annotation is normalized to a one-element array.
  */
 function annotateMember(instance, key, annotations) {
+    if (annotations != null && !isArr(annotations)) annotations = [annotations];
     if (instance == null
         || !(key in instance)
         || !isArr(annotations)
