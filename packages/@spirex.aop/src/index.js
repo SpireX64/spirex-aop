@@ -186,7 +186,12 @@ function callGetterPipeline(hooks, meta, read) {
         var aroundGetter = hooks[i].aroundGetter;
         if (aroundGetter) get = ((hook, next) => () => hook(meta, next))(aroundGetter, get);
     }
-    var result = get();
+    var result;
+    try {
+        result = get();
+    } catch (error) {
+        return runErrorHooks(hooks, 'onGetterThrows', meta, error);
+    }
 
     for (var j = len(hooks) - 1; j >= 0; j--) {
         var afterGetter = hooks[j].afterGetter;
@@ -208,7 +213,12 @@ function callSetterPipeline(hooks, meta, value, write) {
         var aroundSetter = hooks[i].aroundSetter;
         if (aroundSetter) set = ((hook, next) => () => hook(meta, next))(aroundSetter, set);
     }
-    set(value);
+    try {
+        set(value);
+    } catch (error) {
+        runErrorHooks(hooks, 'onSetterThrows', meta, error);
+        return;
+    }
 
     for (var j = len(hooks) - 1; j >= 0; j--) {
         var afterSetter = hooks[j].afterSetter;
@@ -216,11 +226,11 @@ function callSetterPipeline(hooks, meta, value, write) {
     }
 }
 
-function runMethodErrorHooks(hooks, meta, error) {
+function runErrorHooks(hooks, hookName, meta, error) {
     var handled = false;
     var result;
     for (var k = len(hooks) - 1; k >= 0; k--) {
-        var onThrow = hooks[k].onThrow;
+        var onThrow = hooks[k][hookName];
         if (onThrow) {
             try {
                 var handledValue = onThrow(meta, error);
@@ -258,7 +268,7 @@ function callMethodPipeline(hooks, thisRef, methodRef, params) {
     try {
         result = proceed();
     } catch (error) {
-        return runMethodErrorHooks(hooks, meta, error);
+        return runErrorHooks(hooks, 'onThrow', meta, error);
     }
 
     if (result instanceof Promise)
@@ -267,7 +277,7 @@ function callMethodPipeline(hooks, thisRef, methodRef, params) {
                 runMethodAfterHooks(hooks, meta, value);
                 return value;
             },
-            reason => runMethodErrorHooks(hooks, meta, reason),
+            reason => runErrorHooks(hooks, 'onThrow', meta, reason),
         );
 
     runMethodAfterHooks(hooks, meta, result);
