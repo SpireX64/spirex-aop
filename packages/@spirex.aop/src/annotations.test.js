@@ -1,133 +1,153 @@
-import { describe, expect, test } from 'vitest';
-import { annotate, defineAnnotation, getAnnotations, hasAnnotation } from './annotations.js';
+import { describe, expect, test } from "vitest";
+import {
+    annotate,
+    defineAnnotation,
+    getAnnotations,
+    hasAnnotation,
+} from "./annotations.js";
 
-describe('defineAnnotation', () => {
-    test('returns a constructor producing frozen { name, args } annotations', () => {
+describe("defineAnnotation", () => {
+    test("returns a constructor producing frozen { name, args } annotations", () => {
         // Arrange --------------
-        var WatchLog = defineAnnotation('WatchLog');
+        var WatchLog = defineAnnotation("WatchLog");
 
         // Act --------------
-        var annotation = WatchLog(1, 'x');
+        var annotation = WatchLog(1, "x");
 
         // Assert --------------
-        expect(annotation).toEqual({ name: 'WatchLog', args: [1, 'x'] });
+        expect(annotation).toEqual({ name: "WatchLog", args: [1, "x"] });
         expect(annotation).is.frozen;
     });
 });
 
-describe('annotate / getAnnotations', () => {
-    test('stores annotations per member and returns them by instance + member name', () => {
+describe("annotate / getAnnotations", () => {
+    test("stores annotations per member and returns them by instance + member name", () => {
         // Arrange --------------
-        var Tag = defineAnnotation('Tag');
-        var instance = { foo() { }, bar() { } };
+        var Tag = defineAnnotation("Tag");
+        var instance = { foo() {}, bar() {} };
 
         // Act --------------
-        annotate([Tag('a'), Tag('b')], instance, 'foo');
+        annotate([Tag("a"), Tag("b")], instance, "foo");
 
         // Assert --------------
-        expect(getAnnotations(instance, 'foo')).toEqual([Tag('a'), Tag('b')]);
+        expect(getAnnotations(instance, "foo")).toEqual([Tag("a"), Tag("b")]);
     });
 
-    test('normalizes a single annotation to a one-element array', () => {
+    test("normalizes a single annotation to a one-element array", () => {
         // Arrange --------------
-        var Deprecated = defineAnnotation('Deprecated');
-        var instance = { doAction() { } };
+        var Deprecated = defineAnnotation("Deprecated");
+        var instance = { doAction() {} };
 
         // Act --------------
-        annotate(Deprecated('1.2.3'), instance, 'doAction');
+        annotate(Deprecated("1.2.3"), instance, "doAction");
 
         // Assert --------------
-        expect(getAnnotations(instance, 'doAction')).toEqual([Deprecated('1.2.3')]);
+        expect(getAnnotations(instance, "doAction")).toEqual([
+            Deprecated("1.2.3"),
+        ]);
     });
 
-    test('annotations of one member do not leak onto another member', () => {
+    test("annotations of one member do not leak onto another member", () => {
         // Arrange --------------
-        var Tag = defineAnnotation('Tag');
-        var instance = { foo() { }, bar() { } };
+        var Tag = defineAnnotation("Tag");
+        var instance = { foo() {}, bar() {} };
 
         // Act --------------
-        annotate([Tag('only-foo')], instance, 'foo');
+        annotate([Tag("only-foo")], instance, "foo");
 
         // Assert --------------
-        expect(getAnnotations(instance, 'bar')).toEqual([]);
-        expect(getAnnotations(instance, 'foo')).toEqual([Tag('only-foo')]);
+        expect(getAnnotations(instance, "bar")).toEqual([]);
+        expect(getAnnotations(instance, "foo")).toEqual([Tag("only-foo")]);
     });
 });
 
-describe('annotate / getAnnotations — class, memberless, inheritance', () => {
-    test('annotates a class member by passing the constructor', () => {
+describe("annotate / getAnnotations — class, memberless, inheritance", () => {
+    test("annotates a class member by passing the constructor", () => {
         // Arrange --------------
-        var Route = defineAnnotation('Route');
-        class AuthController { login() { } }
+        var Route = defineAnnotation("Route");
+        class AuthController {
+            login() {}
+        }
 
         // Act --------------
-        annotate([Route('api/auth')], AuthController, 'login');
+        annotate([Route("api/auth")], AuthController, "login");
 
         // Assert --------------
-        expect(getAnnotations(new AuthController(), 'login')).toEqual([Route('api/auth')]);
+        expect(getAnnotations(new AuthController(), "login")).toEqual([
+            Route("api/auth"),
+        ]);
     });
 
-    test('annotates the class itself when memberName is omitted', () => {
+    test("annotates the class itself when memberName is omitted", () => {
         // Arrange --------------
-        var Tag = defineAnnotation('Tag');
-        class Service { }
+        var Tag = defineAnnotation("Tag");
+        class Service {}
 
         // Act --------------
-        annotate([Tag('svc')], Service);
+        annotate([Tag("svc")], Service);
 
         // Assert --------------
-        expect(getAnnotations(Service)).toEqual([Tag('svc')]);
+        expect(getAnnotations(Service)).toEqual([Tag("svc")]);
     });
 
-    test('annotates the instance itself when memberName is omitted', () => {
+    test("annotates the instance itself when memberName is omitted", () => {
         // Arrange --------------
-        var Tag = defineAnnotation('Tag');
-        var instance = { };
+        var Tag = defineAnnotation("Tag");
+        var instance = {};
 
         // Act --------------
-        annotate([Tag('own')], instance);
+        annotate([Tag("own")], instance);
 
         // Assert --------------
-        expect(getAnnotations(instance)).toEqual([Tag('own')]);
+        expect(getAnnotations(instance)).toEqual([Tag("own")]);
     });
 
-    test('merges annotations up the prototype chain nearest-first with dedup by name+args', () => {
+    test("merges annotations up the prototype chain nearest-first with dedup by name+args", () => {
         // Arrange --------------
-        var Tag = defineAnnotation('Tag');
-        class Base { work() { } }
-        class Derived extends Base { work() { } }
-        annotate([Tag('base'), Tag('shared')], Base, 'work');
-        annotate([Tag('derived'), Tag('shared')], Derived, 'work');
+        var Tag = defineAnnotation("Tag");
+        class Base {
+            work() {}
+        }
+        class Derived extends Base {
+            work() {}
+        }
+        annotate([Tag("base"), Tag("shared")], Base, "work");
+        annotate([Tag("derived"), Tag("shared")], Derived, "work");
         var instance = new Derived();
-        annotate([Tag('instance')], instance, 'work');
+        annotate([Tag("instance")], instance, "work");
 
         // Act --------------
-        var annotations = getAnnotations(instance, 'work');
+        var annotations = getAnnotations(instance, "work");
 
         // Assert --------------
-        expect(annotations).toEqual([Tag('instance'), Tag('derived'), Tag('shared'), Tag('base')]);
+        expect(annotations).toEqual([
+            Tag("instance"),
+            Tag("derived"),
+            Tag("shared"),
+            Tag("base"),
+        ]);
     });
 });
 
-describe('hasAnnotation', () => {
-    test('matches a memberless annotation by instance', () => {
+describe("hasAnnotation", () => {
+    test("matches a memberless annotation by instance", () => {
         // Arrange --------------
-        var Tag = defineAnnotation('Tag');
-        var instance = { };
-        annotate([Tag('x')], instance);
+        var Tag = defineAnnotation("Tag");
+        var instance = {};
+        annotate([Tag("x")], instance);
 
         // Act --------------
-        var result = hasAnnotation(instance, Tag('x'));
+        var result = hasAnnotation(instance, Tag("x"));
 
         // Assert --------------
         expect(result).is.true;
     });
 
-    test('matches a memberless annotation by constructor', () => {
+    test("matches a memberless annotation by constructor", () => {
         // Arrange --------------
-        var Tag = defineAnnotation('Tag');
-        var instance = { };
-        annotate([Tag('x')], instance);
+        var Tag = defineAnnotation("Tag");
+        var instance = {};
+        annotate([Tag("x")], instance);
 
         // Act --------------
         var result = hasAnnotation(instance, Tag);
@@ -136,12 +156,12 @@ describe('hasAnnotation', () => {
         expect(result).is.true;
     });
 
-    test('respects the inheritance merge', () => {
+    test("respects the inheritance merge", () => {
         // Arrange --------------
-        var Tag = defineAnnotation('Tag');
-        class Base { }
-        class Derived extends Base { }
-        annotate([Tag('base')], Base);
+        var Tag = defineAnnotation("Tag");
+        class Base {}
+        class Derived extends Base {}
+        annotate([Tag("base")], Base);
 
         // Act --------------
         var result = hasAnnotation(new Derived(), Tag);
@@ -150,12 +170,12 @@ describe('hasAnnotation', () => {
         expect(result).is.true;
     });
 
-    test('returns false when the annotation is absent', () => {
+    test("returns false when the annotation is absent", () => {
         // Arrange --------------
-        var Tag = defineAnnotation('Tag');
-        var Other = defineAnnotation('Other');
-        var instance = { };
-        annotate([Tag('x')], instance);
+        var Tag = defineAnnotation("Tag");
+        var Other = defineAnnotation("Other");
+        var instance = {};
+        annotate([Tag("x")], instance);
 
         // Act --------------
         var result = hasAnnotation(instance, Other);

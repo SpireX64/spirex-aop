@@ -24,10 +24,10 @@ var $own = Symbol(); // store key for memberless (target-level) annotations
  * @returns {TAnnotationCtor<any>} Constructor producing frozen `{ name, args }` annotations.
  */
 export function defineAnnotation(name) {
-    var annotationFactory = (...args) => readOnly(defineProps(
-        { name, args },
-        { [$annotationType]: { value: true } },
-    ));
+    var annotationFactory = (...args) =>
+        readOnly(
+            defineProps({ name, args }, { [$annotationType]: { value: true } }),
+        );
     return defineProps(annotationFactory, {
         [$annotationType]: { value: true },
         name: { value: name },
@@ -45,21 +45,26 @@ export function defineAnnotation(name) {
  */
 export function annotate(annotations, classOrInstance, memberName) {
     if (annotations != null && !isArr(annotations)) annotations = [annotations];
-    if (classOrInstance == null
-        || !isArr(annotations)
-        || annotations.length === 0
-    ) return;
+    if (
+        classOrInstance == null ||
+        !isArr(annotations) ||
+        annotations.length === 0
+    )
+        return;
     if (memberName !== undefined) {
-        var memberExists = typeof classOrInstance === 'function'
-            ? memberName in (classOrInstance.prototype || {})
-            : memberName in classOrInstance;
+        var memberExists =
+            typeof classOrInstance === "function"
+                ? memberName in (classOrInstance.prototype || {})
+                : memberName in classOrInstance;
         if (!memberExists) return;
     }
 
     // The store must be OWN: constructors inherit through the prototype
     // chain (Derived.__proto__ === Base), so an inherited store would
     // otherwise be shared and mutated across the hierarchy.
-    var store = hasOwn(classOrInstance, $annotations) ? classOrInstance[$annotations] : undefined;
+    var store = hasOwn(classOrInstance, $annotations)
+        ? classOrInstance[$annotations]
+        : undefined;
     // Null-proto map: prototype keys (e.g. 'constructor') must not read as annotations.
     if (!store) store = classOrInstance[$annotations] = Object.create(null);
 
@@ -91,9 +96,10 @@ function isSameAnnotation(a, b) {
  */
 function getAnnotationChain(classOrInstance) {
     var chain = [classOrInstance];
-    var ctor = typeof classOrInstance === 'function'
-        ? Object.getPrototypeOf(classOrInstance)
-        : classOrInstance.constructor;
+    var ctor =
+        typeof classOrInstance === "function"
+            ? Object.getPrototypeOf(classOrInstance)
+            : classOrInstance.constructor;
     while (ctor != null && ctor !== Function.prototype) {
         chain.push(ctor);
         ctor = Object.getPrototypeOf(ctor);
@@ -111,11 +117,14 @@ function getAnnotationChain(classOrInstance) {
 function mergeAnnotations(chain, key) {
     var merged = [];
     for (var target of chain) {
-        var store = hasOwn(target, $annotations) ? target[$annotations] : undefined;
+        var store = hasOwn(target, $annotations)
+            ? target[$annotations]
+            : undefined;
         var list = store != null ? store[key] : undefined;
         if (!list) continue;
         for (var ann of list)
-            if (!merged.some(item => isSameAnnotation(item, ann))) merged.push(ann);
+            if (!merged.some((item) => isSameAnnotation(item, ann)))
+                merged.push(ann);
     }
     return merged;
 }
@@ -143,9 +152,9 @@ export function getAnnotations(classOrInstance, memberName) {
  */
 function matchAnnotation(list, item) {
     return list.some(
-        typeof item === 'function'
-            ? ann => ann.name === item.name
-            : ann => isSameAnnotation(ann, item),
+        typeof item === "function"
+            ? (ann) => ann.name === item.name
+            : (ann) => isSameAnnotation(ann, item),
     );
 }
 

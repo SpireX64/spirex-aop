@@ -1,11 +1,13 @@
-/** An annotation instance: frozen `{ name, args }` produced by an annotation constructor. */
+/** An annotation read-only entry */
 export type TAnnotation = {
     readonly name: string;
     readonly args: readonly unknown[];
 };
 
-/** Constructor producing frozen {@link TAnnotation} instances. */
-export type TAnnotationCtor<Args extends any[]> = (...args: Args) => TAnnotation;
+/** Constructor producing {@link TAnnotation} instances. */
+export type TAnnotationCtor<Args extends any[]> = (
+    ...args: Args
+) => TAnnotation;
 
 /** Annotation reference: an annotation instance or its constructor. */
 export type TAnnotationOrCtor = TAnnotationCtor<any> | TAnnotation;
@@ -15,7 +17,9 @@ export type TAnnotationOrCtor = TAnnotationCtor<any> | TAnnotation;
  * @param name Annotation name.
  * @returns A constructor producing frozen `{ name, args }` annotation instances.
  */
-export declare function defineAnnotation<Args extends any[]>(name: string): TAnnotationCtor<Args>;
+export declare function defineAnnotation<Args extends any[]>(
+    name: string,
+): TAnnotationCtor<Args>;
 
 /**
  * Attaches annotations to a class or instance — to one member when
@@ -34,13 +38,18 @@ export declare function annotate(
  * Reads merge instance → class → base classes up the prototype chain,
  * nearest-first, deduplicated by name+args.
  */
-export declare function getAnnotations(classOrInstance: object): readonly TAnnotation[];
+export declare function getAnnotations(
+    classOrInstance: object,
+): readonly TAnnotation[];
 /**
  * Returns the annotations of one member of a class or instance.
  * Reads merge instance → class → base classes up the prototype chain,
  * nearest-first, deduplicated by name+args.
  */
-export declare function getAnnotations(classOrInstance: object, memberName: string): readonly TAnnotation[];
+export declare function getAnnotations(
+    classOrInstance: object,
+    memberName: string,
+): readonly TAnnotation[];
 
 /**
  * Checks whether a class or instance carries the given annotation (by
