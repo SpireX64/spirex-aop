@@ -131,8 +131,11 @@ export interface IAspect {
     /** Returns the annotations of one member of an instance. */
     getAnnotations<T extends object>(target: T, selector: keyof T): readonly TAnnotation[];
 
-    /** Attaches annotations to one member of an instance. */
-    annotate<T extends object>(instance: T, selector: keyof T, annotations: readonly TAnnotation[]): void;
+    /**
+     * Attaches annotations to one member of an instance.
+     * A lone annotation is normalized to a one-element array.
+     */
+    annotate<T extends object>(instance: T, selector: keyof T, annotations: TAnnotation | readonly TAnnotation[]): void;
     /**
      * Applies aspects to an instance: returns the Aspect Proxy, or the
      * original object when no aspect matches. One proxy per object —
