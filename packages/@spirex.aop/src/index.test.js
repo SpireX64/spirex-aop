@@ -800,3 +800,114 @@ describe('Aspect accessor pipeline', () => {
             .toEqual(Object.getOwnPropertyDescriptor(instance, 'value'));
     });
 });
+
+describe('Aspect accessor onThrow', () => {
+    test('runs onGetterThrows instead of afterGetter on getter error', () => {
+        // Arrange --------------
+        var calls = [];
+        var error = new Error('boom');
+        var instance = { get prop() { throw error; } };
+        var aspect = Aspect.accessor({ memberName: 'prop' }, {
+            afterGetter: () => { calls.push('after'); },
+            onGetterThrows: (meta, err) => { calls.push(['onGetterThrows', err]); },
+        });
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        try { var value = wrapped.prop; } catch (e) { /* expected */ }
+
+        // Assert --------------
+        expect(calls).toEqual([['onGetterThrows', error]]);
+    });
+
+    test('runs all onGetterThrows hooks in reverse order with the thrown error', () => {
+        // Arrange --------------
+        var calls = [];
+        var error = new Error('boom');
+        var instance = { get prop() { throw error; } };
+        var first = Aspect.accessor({ memberName: 'prop' }, {
+            onGetterThrows: (meta, err) => { calls.push(['first', err]); },
+        });
+        var second = Aspect.accessor({ memberName: 'prop' }, {
+            onGetterThrows: (meta, err) => { calls.push(['second', err]); },
+        });
+        var wrapped = Aspect.apply(instance, [first, second]);
+
+        // Act --------------
+        try { var value = wrapped.prop; } catch (e) { /* expected */ }
+
+        // Assert --------------
+        expect(calls).toEqual([['second', error], ['first', error]]);
+    });
+
+    test('propagates the getter error to the caller by default', () => {
+        // Arrange --------------
+        var calls = [];
+        var error = new Error('boom');
+        var instance = { get prop() { throw error; } };
+        var aspect = Aspect.accessor({ memberName: 'prop' }, {
+            onGetterThrows: () => { calls.push('onGetterThrows'); },
+        });
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        var caught;
+        try { var value = wrapped.prop; } catch (e) { caught = e; }
+
+        // Assert --------------
+        expect(calls).toEqual(['onGetterThrows']);
+        expect(caught).toBe(error);
+    });
+
+    test('an onGetterThrows return value substitutes the getter result', () => {
+        // Arrange --------------
+        var instance = { get prop() { throw new Error('boom'); } };
+        var aspect = Aspect.accessor({ memberName: 'prop' }, { onGetterThrows: () => 'recovered' });
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        var value = wrapped.prop;
+
+        // Assert --------------
+        expect(value).toBe('recovered');
+    });
+
+    test('runs onSetterThrows instead of afterSetter on setter error', () => {
+        // Arrange --------------
+        var calls = [];
+        var error = new Error('boom');
+        var instance = { set prop(v) { throw error; } };
+        var aspect = Aspect.accessor({ memberName: 'prop' }, {
+            afterSetter: () => { calls.push('after'); },
+            onSetterThrows: (meta, err) => { calls.push(['onSetterThrows', err]); },
+        });
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        try { wrapped.prop = 1; } catch (e) { /* expected */ }
+
+        // Assert --------------
+        expect(calls).toEqual([['onSetterThrows', error]]);
+    });
+
+    test('an onSetterThrows return value marks the error handled and accepts the write', () => {
+        // Arrange --------------
+        var calls = [];
+        var instance = { set prop(v) { throw new Error('boom'); } };
+        var aspect = Aspect.accessor({ memberName: 'prop' }, {
+            onSetterThrows: () => {
+                calls.push('onSetterThrows');
+                return 'handled';
+            },
+        });
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        var caught;
+        try { wrapped.prop = 1; } catch (e) { caught = e; }
+
+        // Assert --------------
+        expect(calls).toEqual(['onSetterThrows']);
+        expect(caught).toBeUndefined();
+    });
+});
