@@ -53,3 +53,58 @@ describe('annotate / getAnnotations', () => {
         expect(getAnnotations(instance, 'foo')).toEqual([Tag('only-foo')]);
     });
 });
+
+describe('annotate / getAnnotations — class, memberless, inheritance', () => {
+    test('annotates a class member by passing the constructor', () => {
+        // Arrange --------------
+        var Route = defineAnnotation('Route');
+        class AuthController { login() { } }
+
+        // Act --------------
+        annotate([Route('api/auth')], AuthController, 'login');
+
+        // Assert --------------
+        expect(getAnnotations(new AuthController(), 'login')).toEqual([Route('api/auth')]);
+    });
+
+    test('annotates the class itself when memberName is omitted', () => {
+        // Arrange --------------
+        var Tag = defineAnnotation('Tag');
+        class Service { }
+
+        // Act --------------
+        annotate([Tag('svc')], Service);
+
+        // Assert --------------
+        expect(getAnnotations(Service)).toEqual([Tag('svc')]);
+    });
+
+    test('annotates the instance itself when memberName is omitted', () => {
+        // Arrange --------------
+        var Tag = defineAnnotation('Tag');
+        var instance = { };
+
+        // Act --------------
+        annotate([Tag('own')], instance);
+
+        // Assert --------------
+        expect(getAnnotations(instance)).toEqual([Tag('own')]);
+    });
+
+    test('merges annotations up the prototype chain nearest-first with dedup by name+args', () => {
+        // Arrange --------------
+        var Tag = defineAnnotation('Tag');
+        class Base { work() { } }
+        class Derived extends Base { work() { } }
+        annotate([Tag('base'), Tag('shared')], Base, 'work');
+        annotate([Tag('derived'), Tag('shared')], Derived, 'work');
+        var instance = new Derived();
+        annotate([Tag('instance')], instance, 'work');
+
+        // Act --------------
+        var annotations = getAnnotations(instance, 'work');
+
+        // Assert --------------
+        expect(annotations).toEqual([Tag('instance'), Tag('derived'), Tag('shared'), Tag('base')]);
+    });
+});
