@@ -169,6 +169,53 @@ function getMethodHooks(target, name) {
     );
 }
 
+function getAccessorHooks(target, name) {
+    var aspects = target[$aspects] || [];
+    return aspects.filter(
+        aspect => aspect.$aspect === 'a'
+            && isMatchMember(target, name, aspect, aspect[$selector] || {}),
+    );
+}
+
+function callGetterPipeline(hooks, meta, read) {
+    for (var aspect of hooks)
+        if (aspect.beforeGetter) aspect.beforeGetter(meta, undefined);
+
+    var get = read;
+    for (var i = len(hooks) - 1; i >= 0; i--) {
+        var aroundGetter = hooks[i].aroundGetter;
+        if (aroundGetter) get = ((hook, next) => () => hook(meta, next))(aroundGetter, get);
+    }
+    var result = get();
+
+    for (var j = len(hooks) - 1; j >= 0; j--) {
+        var afterGetter = hooks[j].afterGetter;
+        if (afterGetter) afterGetter(meta, result);
+    }
+    return result;
+}
+
+function callSetterPipeline(hooks, meta, value, write) {
+    for (var aspect of hooks)
+        if (aspect.beforeSetter) aspect.beforeSetter(meta, value);
+
+    var storedValue = value;
+    var set = (v) => {
+        storedValue = v;
+        write(v);
+    };
+    for (var i = len(hooks) - 1; i >= 0; i--) {
+        var aroundSetter = hooks[i].aroundSetter;
+        if (aroundSetter) set = ((hook, next) => () => hook(meta, next))(aroundSetter, set);
+    }
+    set(value);
+
+    for (var j = len(hooks) - 1; j >= 0; j--) {
+        var afterSetter = hooks[j].afterSetter;
+        if (afterSetter) afterSetter(meta, storedValue);
+    }
+}
+
 function runMethodErrorHooks(hooks, meta, error) {
     var handled = false;
     var result;
@@ -229,11 +276,41 @@ function callMethodPipeline(hooks, thisRef, methodRef, params) {
 
 var aspectProxyHandlers = {
     get(target, key, receiver) {
+        if (typeof key !== 'string' || key === 'constructor')
+            return Reflect.get(target, key, receiver);
+
+        var accessorHooks = getAccessorHooks(target, key);
+        if (len(accessorHooks) > 0) {
+            var meta = {
+                thisRef: receiver,
+                name: key,
+                descriptor: findMemberDescriptor(target, key),
+            };
+            return callGetterPipeline(
+                accessorHooks, meta, () => Reflect.get(target, key, receiver),
+            );
+        }
+
         var value = Reflect.get(target, key, receiver);
-        if (typeof value !== 'function' || key === 'constructor') return value;
-        var hooks = getMethodHooks(target, key);
-        if (len(hooks) === 0) return value;
-        return (...args) => callMethodPipeline(hooks, receiver, value, args);
+        if (typeof value !== 'function') return value;
+        var methodHooks = getMethodHooks(target, key);
+        if (len(methodHooks) === 0) return value;
+        return (...args) => callMethodPipeline(methodHooks, receiver, value, args);
+    },
+    set(target, key, value, receiver) {
+        if (typeof key !== 'string' || key === 'constructor')
+            return Reflect.set(target, key, value, receiver);
+
+        var hooks = getAccessorHooks(target, key);
+        if (len(hooks) === 0) return Reflect.set(target, key, value, receiver);
+
+        var meta = {
+            thisRef: receiver,
+            name: key,
+            descriptor: findMemberDescriptor(target, key),
+        };
+        callSetterPipeline(hooks, meta, value, v => Reflect.set(target, key, v, receiver));
+        return true;
     },
 };
 
