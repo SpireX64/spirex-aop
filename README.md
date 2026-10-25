@@ -88,3 +88,10 @@ calculator.add(2, 3);
 ```
 
 That is the whole workflow: define an aspect, apply it, and keep calling your object as usual.
+
+## License
+
+`@spirex/aop` is released under the MIT License.
+You are free to use, modify, and distribute the library in both personal and commercial projects.
+
+See the [LICENSE](LICENSE) file for the full license text.
