@@ -121,12 +121,14 @@ function buildMatchMemo(instance, applied) {
 
 function getMethodHooks(target, name) {
     var memo = target[$matched];
+    /* istanbul ignore next: trap targets always carry the memo */
     var entry = memo != null ? memo[name] : undefined;
     return entry ? entry.m : [];
 }
 
 function getAccessorHooks(target, name) {
     var memo = target[$matched];
+    /* istanbul ignore next: trap targets always carry the memo */
     var entry = memo != null ? memo[name] : undefined;
     return entry ? entry.a : [];
 }

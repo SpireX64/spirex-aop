@@ -463,6 +463,71 @@ describe("Aspect.apply lifecycle and introspection", () => {
         // Assert --------------
         expect(Aspect.getAspects(wrapped)).toEqual([matching]);
     });
+
+    test("returns the target as-is when the instance is null", () => {
+        // Arrange --------------
+        var aspect = Aspect.method(
+            { memberName: "foo" },
+            { beforeCall: () => {} },
+        );
+
+        // Act --------------
+        var result = Aspect.apply(null, [aspect]);
+
+        // Assert --------------
+        expect(result).toBe(null);
+    });
+
+    test("returns the instance as-is when aspects is not an array", () => {
+        // Arrange --------------
+        var instance = { foo() {} };
+
+        // Act --------------
+        var result = Aspect.apply(instance, null);
+
+        // Assert --------------
+        expect(result).toBe(instance);
+    });
+
+    test("getAspects returns an empty list for a null instance", () => {
+        // Arrange --------------
+        var instance = null;
+
+        // Act --------------
+        var aspects = Aspect.getAspects(instance);
+
+        // Assert --------------
+        expect(aspects).toEqual([]);
+    });
+
+    test("getAspects returns an empty list for a non-wrapped object", () => {
+        // Arrange --------------
+        var instance = { foo() {} };
+
+        // Act --------------
+        var aspects = Aspect.getAspects(instance);
+
+        // Assert --------------
+        expect(aspects).toEqual([]);
+    });
+
+    test("a selector-less aspect object matches all method members", () => {
+        // Arrange --------------
+        var calls = [];
+        var instance = { foo() {} };
+        var aspect = {
+            $aspect: "m",
+            beforeCall: () => calls.push("before"),
+        };
+
+        // Act --------------
+        var wrapped = Aspect.apply(instance, [aspect]);
+        wrapped.foo();
+
+        // Assert --------------
+        expect(wrapped).not.toBe(instance);
+        expect(calls).toEqual(["before"]);
+    });
 });
 
 describe("Aspect.unwrap", () => {
@@ -1403,6 +1468,29 @@ describe("Aspect accessor pipeline", () => {
             Object.getOwnPropertyDescriptor(instance, "value"),
         );
     });
+
+    test("a member deleted after apply reads as undefined while its hooks still fire", () => {
+        // Arrange --------------
+        var calls = [];
+        var instance = { value: 42 };
+        var aspect = Aspect.accessor(
+            { memberName: "value" },
+            {
+                beforeGetter: (meta) => {
+                    calls.push(meta.descriptor);
+                },
+            },
+        );
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        delete instance.value;
+        var value = wrapped.value;
+
+        // Assert --------------
+        expect(value).toBeUndefined();
+        expect(calls).toEqual([undefined]);
+    });
 });
 
 describe("Aspect accessor onThrow", () => {
@@ -1780,6 +1868,65 @@ describe("withAnnotations", () => {
             thisRef: instance,
             name: "login",
             descriptor: Object.getOwnPropertyDescriptor(instance, "login"),
+        };
+
+        // Act --------------
+        var result = predicate(meta);
+
+        // Assert --------------
+        expect(result).is.false;
+    });
+
+    test("the predicate is truthy when the listed annotation is the identical stored instance", () => {
+        // Arrange --------------
+        var Tag = defineAnnotation("Tag");
+        var tag = Tag("x");
+        var instance = { foo() {} };
+        annotate([tag], instance, "foo");
+        var predicate = withAnnotations([tag]);
+        var meta = {
+            thisRef: instance,
+            name: "foo",
+            descriptor: Object.getOwnPropertyDescriptor(instance, "foo"),
+        };
+
+        // Act --------------
+        var result = predicate(meta);
+
+        // Assert --------------
+        expect(result).is.true;
+    });
+
+    test("the predicate is falsy when the stored annotation has a different name", () => {
+        // Arrange --------------
+        var Tag = defineAnnotation("Tag");
+        var Other = defineAnnotation("Other");
+        var instance = { foo() {} };
+        annotate([Other("x")], instance, "foo");
+        var predicate = withAnnotations([Tag("x")]);
+        var meta = {
+            thisRef: instance,
+            name: "foo",
+            descriptor: Object.getOwnPropertyDescriptor(instance, "foo"),
+        };
+
+        // Act --------------
+        var result = predicate(meta);
+
+        // Assert --------------
+        expect(result).is.false;
+    });
+
+    test("the predicate is falsy when the stored annotation has different args", () => {
+        // Arrange --------------
+        var Tag = defineAnnotation("Tag");
+        var instance = { foo() {} };
+        annotate([Tag("a")], instance, "foo");
+        var predicate = withAnnotations([Tag("b")]);
+        var meta = {
+            thisRef: instance,
+            name: "foo",
+            descriptor: Object.getOwnPropertyDescriptor(instance, "foo"),
         };
 
         // Act --------------
