@@ -59,6 +59,125 @@ describe("annotate / getAnnotations", () => {
         expect(getAnnotations(instance, "bar")).toEqual([]);
         expect(getAnnotations(instance, "foo")).toEqual([Tag("only-foo")]);
     });
+
+    test("annotating the same member twice concatenates the annotations", () => {
+        // Arrange --------------
+        var Tag = defineAnnotation("Tag");
+        var instance = { foo() {} };
+
+        // Act --------------
+        annotate([Tag("a")], instance, "foo");
+        annotate([Tag("b")], instance, "foo");
+
+        // Assert --------------
+        expect(getAnnotations(instance, "foo")).toEqual([Tag("a"), Tag("b")]);
+    });
+
+    test("returns an empty list for a null target", () => {
+        // Arrange --------------
+        var target = null;
+
+        // Act --------------
+        var annotations = getAnnotations(target);
+
+        // Assert --------------
+        expect(annotations).toEqual([]);
+    });
+});
+
+describe("annotate input validation", () => {
+    test("throws TypeError on a null target", () => {
+        // Arrange --------------
+        var Tag = defineAnnotation("Tag");
+
+        // Act --------------
+        var act = () => annotate([Tag()], null);
+
+        // Assert --------------
+        expect(act).toThrow(TypeError);
+    });
+
+    test("throws TypeError on an undefined target", () => {
+        // Arrange --------------
+        var Tag = defineAnnotation("Tag");
+
+        // Act --------------
+        var act = () => annotate([Tag()], undefined);
+
+        // Assert --------------
+        expect(act).toThrow(TypeError);
+    });
+
+    test("throws TypeError on null annotations", () => {
+        // Arrange --------------
+        var instance = {};
+
+        // Act --------------
+        var act = () => annotate(null, instance);
+
+        // Assert --------------
+        expect(act).toThrow(TypeError);
+    });
+
+    test("throws TypeError on undefined annotations", () => {
+        // Arrange --------------
+        var instance = {};
+
+        // Act --------------
+        var act = () => annotate(undefined, instance);
+
+        // Assert --------------
+        expect(act).toThrow(TypeError);
+    });
+
+    test("throws TypeError on an unknown member name of an instance target", () => {
+        // Arrange --------------
+        var Tag = defineAnnotation("Tag");
+        var instance = { foo() {} };
+
+        // Act --------------
+        var act = () => annotate([Tag()], instance, "missing");
+
+        // Assert --------------
+        expect(act).toThrow(TypeError);
+    });
+
+    test("throws TypeError on an unknown member name of a constructor target", () => {
+        // Arrange --------------
+        var Tag = defineAnnotation("Tag");
+        class Service {
+            foo() {}
+        }
+
+        // Act --------------
+        var act = () => annotate([Tag()], Service, "missing");
+
+        // Assert --------------
+        expect(act).toThrow(TypeError);
+    });
+
+    test("an empty annotations array is a no-op", () => {
+        // Arrange --------------
+        var instance = {};
+
+        // Act --------------
+        annotate([], instance);
+
+        // Assert --------------
+        expect(getAnnotations(instance)).toEqual([]);
+    });
+
+    test("throws TypeError when the member is missing on a target function without a prototype", () => {
+        // Arrange --------------
+        var Tag = defineAnnotation("Tag");
+        var target = () => {};
+
+        // Act --------------
+        var act = () => annotate([Tag()], target, "missing");
+
+        // Assert --------------
+        expect(act).toThrow(TypeError);
+    });
 });
 
 describe("annotate / getAnnotations — class, memberless, inheritance", () => {
@@ -127,6 +246,23 @@ describe("annotate / getAnnotations — class, memberless, inheritance", () => {
             Tag("base"),
         ]);
     });
+
+    test("dedups the identical annotation instance appearing twice in the chain", () => {
+        // Arrange --------------
+        var Tag = defineAnnotation("Tag");
+        class Base {}
+        class Derived extends Base {}
+        var tag = Tag("shared");
+        annotate([tag], Base);
+        var instance = new Derived();
+        annotate([tag], instance);
+
+        // Act --------------
+        var annotations = getAnnotations(instance);
+
+        // Assert --------------
+        expect(annotations).toEqual([tag]);
+    });
 });
 
 describe("hasAnnotation", () => {
@@ -179,6 +315,17 @@ describe("hasAnnotation", () => {
 
         // Act --------------
         var result = hasAnnotation(instance, Other);
+
+        // Assert --------------
+        expect(result).is.false;
+    });
+
+    test("returns false for a null target", () => {
+        // Arrange --------------
+        var Tag = defineAnnotation("Tag");
+
+        // Act --------------
+        var result = hasAnnotation(null, Tag);
 
         // Assert --------------
         expect(result).is.false;
