@@ -16,28 +16,39 @@ Without AOP, such code is either duplicated across methods and classes or mixed 
 Under the hood, `@spirex/aop` wraps an object with a proxy that intercepts the selected method calls and runs the advice around them. Your business code stays clean and untouched, while the cross-cutting logic lives in one place — no duplication, no noise.
 
 ## Installation
-
-Any package manager works:
+You can install the package using any popular package manager.
 
 ```sh
+# NPM
 npm install @spirex/aop
-```
-
-```sh
+# YARN
 yarn add @spirex/aop
-```
-
-```sh
+# PNPM
 pnpm add @spirex/aop
 ```
 
-### Requirements
+### Requirements & compatibility
+The library has **zero runtime dependencies**.
 
-The library is written in JavaScript and ships with full TypeScript typing support (`.d.ts` declarations included). It has zero runtime dependencies and is distributed in UMD, ESM, and CJS builds; the main entry is about 4.7 kb minified (~1.85 kb gzip).
+It relies on the following built-in JavaScript features: `Proxy`, `Reflect`, `Promise`.
 
-The only requirement is the JavaScript runtime itself: it must support `Proxy`, `Reflect`, and `Promise`. This limits the range of supported environments — any engine without these standard features cannot run the library.
+These APIs require a modern JavaScript runtime with native support — `Proxy` cannot be polyfilled — which limits the range of supported environments.
 
-A standalone annotations module is also available via the `@spirex/aop/annotations` subpath import.
+### Module formats
+The package supports multiple module systems out of the box:
+
+- ES Modules (ESM) – modern standard for JavaScript modules using `import` and `export`.
+- CommonJS (CJS) – Node.js module system using `require` and `module.exports`.
+- UMD (Universal Module Definition) – works in both browsers and Node.js, compatible with AMD and global scripts.
+
+The main entry is about 4.7 kb minified (~1.85 kb gzip). A standalone annotations module is also available via the `@spirex/aop/annotations` subpath import.
+
+### TypeScript support
+Although the library is written in pure JavaScript, it is fully typed.
+
+- All public APIs are covered by TypeScript type definitions (`.d.ts` declarations are shipped with the package);
+- No additional setup is required;
+- Works seamlessly in both JS and TS projects.
 
 ## Example: logging method calls
 
