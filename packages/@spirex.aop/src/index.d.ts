@@ -88,9 +88,15 @@ export type TAccessorAspectTarget = {
 
 /**
  * Continuation passed to `aroundCall`: invokes the rest of the chain
- * (pre-bound to `thisRef` and `params`) and returns its result.
+ * (pre-bound to `thisRef`) and returns its result. Called with no argument,
+ * applies the method with the CURRENT `meta.params`. Called with an array,
+ * replaces the params wholesale AND updates `meta.params`, so downstream
+ * around layers, `afterCall` and `onThrow` observe the new values;
+ * `proceed([])` performs a zero-params call. A non-array argument throws
+ * `TypeError`. Multiple calls per hook are allowed — each re-invokes the
+ * rest of the chain.
  */
-export type TMethodProceedFunction = () => unknown;
+export type TMethodProceedFunction = (newParams?: unknown[]) => unknown;
 /** Continuation passed to `aroundGetter`: performs the original read. */
 export type TAccessorGetFunction = () => unknown;
 /** Continuation passed to `aroundSetter`: stores the given value. */
@@ -190,6 +196,15 @@ export interface IAspect {
     isWrapped(instance: unknown): boolean;
     /** Returns the aspects currently applied to an instance, in apply-list order. */
     getAspects(instance: unknown): readonly TAnyAspect[];
+
+    /**
+     * Returns the raw target behind an Aspect Proxy. Return-only: the proxy
+     * stays alive and fully functional (`isWrapped` keeps returning `true`
+     * and hooks keep firing on proxy calls). Throws `TypeError` when the
+     * input is not an Aspect Proxy (plain object, raw target, `null`, or a
+     * primitive).
+     */
+    unwrap<T extends object>(instance: T): T;
 }
 
 /** The aspect API. */
