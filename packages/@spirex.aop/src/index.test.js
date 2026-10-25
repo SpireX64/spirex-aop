@@ -607,7 +607,7 @@ describe("Aspect method pipeline", () => {
         ]);
     });
 
-    test("passes aroundCall a proceed pre-bound to thisRef and params", () => {
+    test("passes aroundCall a proceed pre-bound to thisRef that applies meta.params", () => {
         // Arrange --------------
         var calls = [];
         var instance = {
@@ -621,7 +621,7 @@ describe("Aspect method pipeline", () => {
             {
                 aroundCall: (meta, proceed) => {
                     calls.push("around");
-                    return proceed();
+                    return proceed(meta.params);
                 },
             },
         );
@@ -660,6 +660,177 @@ describe("Aspect method pipeline", () => {
         // Assert --------------
         expect(calls).toEqual(["around"]);
         expect(result).toBe("original");
+    });
+
+    test("proceed(newParams) invokes the method with the new params", () => {
+        // Arrange --------------
+        var instance = {
+            add(a, b) {
+                return a + b;
+            },
+        };
+        var aspect = Aspect.method(
+            { memberName: "add" },
+            { aroundCall: (meta, proceed) => proceed([10, 20]) },
+        );
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        var result = wrapped.add(1, 2);
+
+        // Assert --------------
+        expect(result).toBe(30);
+    });
+
+    test("a params overwrite updates meta.params observed by a downstream around layer", () => {
+        // Arrange --------------
+        var seen;
+        var instance = {
+            add(a, b) {
+                return a + b;
+            },
+        };
+        var outer = Aspect.method(
+            { memberName: "add" },
+            { aroundCall: (meta, proceed) => proceed([5, 6]) },
+        );
+        var inner = Aspect.method(
+            { memberName: "add" },
+            {
+                aroundCall: (meta, proceed) => {
+                    seen = meta.params;
+                    return proceed();
+                },
+            },
+        );
+        var wrapped = Aspect.apply(instance, [outer, inner]);
+
+        // Act --------------
+        var result = wrapped.add(1, 2);
+
+        // Assert --------------
+        expect(seen).toEqual([5, 6]);
+        expect(result).toBe(11);
+    });
+
+    test("a params overwrite is observed by afterCall via meta.params", () => {
+        // Arrange --------------
+        var seen;
+        var instance = {
+            add(a, b) {
+                return a + b;
+            },
+        };
+        var aspect = Aspect.method(
+            { memberName: "add" },
+            {
+                aroundCall: (meta, proceed) => proceed([10, 20]),
+                afterCall: (meta) => {
+                    seen = meta.params;
+                },
+            },
+        );
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        wrapped.add(1, 2);
+
+        // Assert --------------
+        expect(seen).toEqual([10, 20]);
+    });
+
+    test("a params overwrite is observed by onThrow via meta.params when the method throws", () => {
+        // Arrange --------------
+        var seen;
+        var instance = {
+            foo() {
+                throw new Error("boom");
+            },
+        };
+        var aspect = Aspect.method(
+            { memberName: "foo" },
+            {
+                aroundCall: (meta, proceed) => proceed([7]),
+                onThrow: (meta) => {
+                    seen = meta.params;
+                },
+            },
+        );
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        try {
+            wrapped.foo(1);
+        } catch {
+            /* expected */
+        }
+
+        // Assert --------------
+        expect(seen).toEqual([7]);
+    });
+
+    test("proceed([]) performs a zero-params call", () => {
+        // Arrange --------------
+        var instance = {
+            foo(...args) {
+                return args.length;
+            },
+        };
+        var aspect = Aspect.method(
+            { memberName: "foo" },
+            { aroundCall: (meta, proceed) => proceed([]) },
+        );
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        var result = wrapped.foo(1, 2, 3);
+
+        // Assert --------------
+        expect(result).toBe(0);
+    });
+
+    test("a non-array proceed argument throws TypeError", () => {
+        // Arrange --------------
+        var instance = { foo() {} };
+        var aspect = Aspect.method(
+            { memberName: "foo" },
+            { aroundCall: (meta, proceed) => proceed("x") },
+        );
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        var act = () => wrapped.foo();
+
+        // Assert --------------
+        expect(act).toThrow(TypeError);
+    });
+
+    test("multiple proceed() calls in one hook each re-invoke the method", () => {
+        // Arrange --------------
+        var count = 0;
+        var instance = {
+            foo(v) {
+                count++;
+                return v;
+            },
+        };
+        var aspect = Aspect.method(
+            { memberName: "foo" },
+            {
+                aroundCall: (meta, proceed) => {
+                    proceed([1]);
+                    return proceed([2]);
+                },
+            },
+        );
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        var result = wrapped.foo();
+
+        // Assert --------------
+        expect(count).toBe(2);
+        expect(result).toBe(2);
     });
 
     test("an aroundCall return value overwrites the result", () => {
