@@ -220,19 +220,31 @@ function runMethodAfterHooks(hooks, meta, result) {
     }
 }
 
+/** Validates a proceed params overwrite and stores it in the shared meta. */
+function overwriteParams(meta, newParams) {
+    if (!isArr(newParams))
+        throw new TypeError("proceed(newParams): newParams must be an array");
+    meta.params = newParams;
+}
+
 function callMethodPipeline(hooks, thisRef, methodRef, params) {
     var meta = { thisRef: thisRef, methodRef: methodRef, params: params };
 
     for (var aspect of hooks)
         if (aspect.beforeCall) aspect.beforeCall(meta, undefined);
 
-    var proceed = () => methodRef.apply(thisRef, params);
+    var proceed = (newParams) => {
+        if (newParams !== undefined) overwriteParams(meta, newParams);
+        return methodRef.apply(thisRef, meta.params);
+    };
     for (var i = len(hooks) - 1; i >= 0; i--) {
         var around = hooks[i].aroundCall;
         if (around)
             proceed = (
-                (hook, next) => () =>
-                    hook(meta, next)
+                (hook, next) => (newParams) => {
+                    if (newParams !== undefined) overwriteParams(meta, newParams);
+                    return hook(meta, next);
+                }
             )(around, proceed);
     }
 
