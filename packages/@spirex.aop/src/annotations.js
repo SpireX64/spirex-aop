@@ -1,8 +1,6 @@
 /// <reference path="./annotations.d.ts"/>
 
 // #region Shortcuts
-// Aliases for frequently used standard functions (minified bundle size rule:
-// an alias exists only when used more than once and shorter than the original).
 var readOnly = Object.freeze;
 var isArr = Array.isArray;
 var defineProps = Object.defineProperties;
@@ -10,19 +8,12 @@ var hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 // #endregion Shortcuts
 
 // #region Symbols
-// Internal state is hidden behind module-private symbols: they are reachable
-// only via Object.getOwnPropertySymbols, keeping them out of the user's way.
-var $annotationType = Symbol(); // marks annotation ctors and instances
-var $annotations = Symbol(); // target → per-member annotation lists (null-proto map)
-var $own = Symbol(); // store key for memberless (target-level) annotations
+var $annotationType = Symbol(); // annotation type tag
+var $annotations = Symbol(); // per-target annotation store
+var $own = Symbol(); // memberless-annotation store key
 // #endregion Symbols
 
 // #region Annotations
-/**
- * Defines an annotation type.
- * @param {string} name Annotation name.
- * @returns {TAnnotationCtor<any>} Constructor producing frozen `{ name, args }` annotations.
- */
 export function defineAnnotation(name) {
     var annotationFactory = (...args) =>
         readOnly(
@@ -34,15 +25,6 @@ export function defineAnnotation(name) {
     });
 }
 
-/**
- * Attaches annotations to a class (constructor) or instance — to one member
- * when `memberName` is given (for a class, the member lives on its
- * prototype), or to the target itself (memberless) when omitted. A lone
- * annotation is normalized to a one-element array.
- * @param {TAnnotation | readonly TAnnotation[]} annotations Annotation(s) to attach.
- * @param {object} classOrInstance Target class (constructor) or instance.
- * @param {string} [memberName] Member name.
- */
 export function annotate(annotations, classOrInstance, memberName) {
     if (annotations != null && !isArr(annotations)) annotations = [annotations];
     if (
@@ -73,12 +55,6 @@ export function annotate(annotations, classOrInstance, memberName) {
     store[key] = list ? list.concat(annotations) : annotations.slice();
 }
 
-/**
- * Structural equality of two annotations: same name and same args.
- * @param {TAnnotation} a
- * @param {TAnnotation} b
- * @returns {boolean}
- */
 function isSameAnnotation(a, b) {
     if (a === b) return true;
     if (a.name !== b.name || a.args.length !== b.args.length) return false;
@@ -87,13 +63,6 @@ function isSameAnnotation(a, b) {
     return true;
 }
 
-/**
- * Builds the read chain for a target: the target itself, then its
- * constructor (for instances), then base constructors up the prototype
- * chain — nearest first.
- * @param {object} classOrInstance Target class (constructor) or instance.
- * @returns {object[]} The chain, nearest first.
- */
 function getAnnotationChain(classOrInstance) {
     var chain = [classOrInstance];
     var ctor =
@@ -107,13 +76,6 @@ function getAnnotationChain(classOrInstance) {
     return chain;
 }
 
-/**
- * Merges the annotation lists stored under `key` across the chain,
- * nearest-first, deduplicated by name+args.
- * @param {object[]} chain Read chain from {@link getAnnotationChain}.
- * @param {string | symbol} key Member name, or `$own` for memberless annotations.
- * @returns {TAnnotation[]} The merged annotations.
- */
 function mergeAnnotations(chain, key) {
     var merged = [];
     for (var target of chain) {
@@ -129,27 +91,12 @@ function mergeAnnotations(chain, key) {
     return merged;
 }
 
-/**
- * Returns the annotations of a class or instance — of one member when
- * `memberName` is given, or the target's own (memberless) annotations when
- * omitted. Reads merge instance → class → base classes up the prototype
- * chain, nearest-first, deduplicated by name+args.
- * @param {object} classOrInstance Target class (constructor) or instance.
- * @param {string} [memberName] Member name.
- * @returns {readonly TAnnotation[]} The annotations (empty when none).
- */
 export function getAnnotations(classOrInstance, memberName) {
     if (classOrInstance == null) return [];
     var key = memberName === undefined ? $own : memberName;
     return readOnly(mergeAnnotations(getAnnotationChain(classOrInstance), key));
 }
-/**
- * Matches one annotation reference (instance or constructor) against a list:
- * a constructor matches by annotation name, an instance matches structurally.
- * @param {readonly TAnnotation[]} list Annotation list.
- * @param {TAnnotationOrCtor} item Annotation instance or constructor.
- * @returns {boolean}
- */
+
 function matchAnnotation(list, item) {
     return list.some(
         typeof item === "function"
@@ -158,13 +105,6 @@ function matchAnnotation(list, item) {
     );
 }
 
-/**
- * Checks whether a class or instance carries the given annotation (by
- * instance or constructor), respecting the inheritance merge.
- * @param {object} classOrInstance Target class (constructor) or instance.
- * @param {TAnnotationOrCtor} annotationOrCtor Annotation instance or constructor.
- * @returns {boolean}
- */
 export function hasAnnotation(classOrInstance, annotationOrCtor) {
     if (classOrInstance == null) return false;
     return matchAnnotation(
