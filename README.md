@@ -93,6 +93,35 @@ calculator.add(2, 3);
 
 That is the whole workflow: define an aspect, apply it, and keep calling your object as usual.
 
+## Extracting the original instance
+
+`Aspect.unwrap(proxy)` returns the raw target behind an Aspect Proxy:
+
+```js
+var calculator = Aspect.apply(new Calculator(), [logCalls]);
+
+var raw = Aspect.unwrap(calculator);
+raw instanceof Calculator; // true
+```
+
+Unwrapping is read-only: the proxy stays alive and keeps running its hooks. Passing anything that is not an Aspect Proxy (a plain object, `null`, or a primitive) throws a `TypeError`.
+
+## Overwriting call parameters
+
+An `aroundCall` hook receives `proceed(newParams?)`. Called with no argument, it invokes the method with the original arguments; called with an array, it replaces them wholesale:
+
+```js
+var injectOperands = Aspect.method(
+    { memberName: "add" },
+    {
+        // Calls `add(2, 3)` regardless of the caller's arguments.
+        aroundCall: (meta, proceed) => proceed([2, 3]),
+    },
+);
+```
+
+The overwrite updates `meta.params`, so downstream `aroundCall` layers, `afterCall`, and `onThrow` all observe the new values. `proceed([])` performs a zero-argument call, a hook may call `proceed` multiple times, and a non-array argument throws a `TypeError`.
+
 ## License
 
 `@spirex/aop` is released under the MIT License.
