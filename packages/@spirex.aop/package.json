@@ -1,9 +1,19 @@
 {
     "name": "@spirex/aop",
     "version": "1.0.0",
-    "description": "",
+    "description": "Lightweight aspect-oriented programming (AOP) library for JavaScript and TypeScript",
     "keywords": [
-        "spirex"
+        "spirex",
+        "aop",
+        "aspect-oriented-programming",
+        "aspect",
+        "advice",
+        "proxy",
+        "interceptor",
+        "annotations",
+        "cross-cutting-concerns",
+        "javascript",
+        "typescript"
     ],
     "license": "MIT",
     "private": false,
@@ -18,6 +28,7 @@
         "type": "git",
         "url": "git+https://github.com/SpireX64/spirex-aop.git"
     },
+    "bugs": "https://github.com/SpireX64/spirex-aop/issues",
     "main": "./dist/index.js",
     "module": "./dist/index.mjs",
     "types": "./dist/index.d.ts",
