@@ -206,8 +206,9 @@ function runErrorHooks(hooks, hookName, meta, error) {
                     result = handledValue;
                     handled = true;
                 }
-            } catch {
+            } catch (error) {
                 /* a re-throwing hook does not stop the chain */
+                void error;
             }
         }
     }
