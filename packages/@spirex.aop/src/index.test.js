@@ -1818,7 +1818,8 @@ describe("Aspect edge cases", () => {
         var aspect = Aspect.method(
             {},
             {
-                beforeCall: (meta) => calls.push("before:" + meta.methodRef.name),
+                beforeCall: (meta) =>
+                    calls.push("before:" + meta.methodRef.name),
             },
         );
         var wrapped = Aspect.apply(instance, [aspect]);

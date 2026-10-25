@@ -41,7 +41,9 @@ export function annotate(annotations, classOrInstance, memberName) {
                 : memberName in classOrInstance;
         if (!memberExists)
             throw new TypeError(
-                "annotate: the member '" + memberName + "' does not exist on the target",
+                "annotate: the member '" +
+                    memberName +
+                    "' does not exist on the target",
             );
     }
 

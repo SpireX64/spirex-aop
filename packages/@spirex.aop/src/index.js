@@ -242,12 +242,10 @@ function callMethodPipeline(hooks, thisRef, methodRef, params) {
     for (var i = len(hooks) - 1; i >= 0; i--) {
         var around = hooks[i].aroundCall;
         if (around)
-            proceed = (
-                (hook, next) => (newParams) => {
-                    if (newParams !== undefined) overwriteParams(meta, newParams);
-                    return hook(meta, next);
-                }
-            )(around, proceed);
+            proceed = ((hook, next) => (newParams) => {
+                if (newParams !== undefined) overwriteParams(meta, newParams);
+                return hook(meta, next);
+            })(around, proceed);
     }
 
     var result;
