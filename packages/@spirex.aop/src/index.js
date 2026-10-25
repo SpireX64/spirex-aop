@@ -304,6 +304,13 @@ function isWrapped(instance) {
     return instance != null && instance[$proxy] === instance;
 }
 
+function unwrap(instance) {
+    var target = instance != null ? instance[$target] : undefined;
+    if (target === undefined)
+        throw new TypeError("Aspect.unwrap: the value is not an aspect proxy");
+    return target;
+}
+
 function getAspects(instance) {
     var applied = instance != null ? instance[$aspects] : undefined;
     return applied ? readOnly(applied.slice()) : [];
@@ -367,5 +374,6 @@ export var Aspect = readOnly({
     apply: applyAspects,
     isWrapped: isWrapped,
     getAspects: getAspects,
+    unwrap: unwrap,
 });
 // #endregion Public API
