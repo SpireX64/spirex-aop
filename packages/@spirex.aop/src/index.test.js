@@ -1598,6 +1598,156 @@ describe("Aspect accessor onThrow", () => {
     });
 });
 
+describe("Aspect edge cases", () => {
+    test("wraps an inherited method whose this is the proxy", () => {
+        // Arrange --------------
+        var calls = [];
+        var seenThis;
+        class Base {
+            greet() {
+                seenThis = this;
+                return "hi";
+            }
+        }
+        class Derived extends Base {}
+        var instance = new Derived();
+        var aspect = Aspect.method(
+            { className: "Derived", memberName: "greet" },
+            { beforeCall: () => calls.push("before") },
+        );
+
+        // Act --------------
+        var wrapped = Aspect.apply(instance, [aspect]);
+        var result = wrapped.greet();
+
+        // Assert --------------
+        expect(wrapped).not.toBe(instance);
+        expect(calls).toEqual(["before"]);
+        expect(result).toBe("hi");
+        expect(seenThis).toBe(wrapped);
+    });
+
+    test("a combined selector wraps when className, memberName and predicate all agree", () => {
+        // Arrange --------------
+        class Service {
+            run() {}
+        }
+        var instance = new Service();
+        var aspect = Aspect.method(
+            {
+                className: "Service",
+                memberName: "run",
+                predicate: () => true,
+            },
+            { beforeCall: () => {} },
+        );
+
+        // Act --------------
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Assert --------------
+        expect(wrapped).not.toBe(instance);
+    });
+
+    test("a combined selector does not wrap when className disagrees", () => {
+        // Arrange --------------
+        class Service {
+            run() {}
+        }
+        var instance = new Service();
+        var aspect = Aspect.method(
+            {
+                className: "Other",
+                memberName: "run",
+                predicate: () => true,
+            },
+            { beforeCall: () => {} },
+        );
+
+        // Act --------------
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Assert --------------
+        expect(wrapped).toBe(instance);
+    });
+
+    test("a combined selector does not wrap when memberName disagrees", () => {
+        // Arrange --------------
+        class Service {
+            run() {}
+        }
+        var instance = new Service();
+        var aspect = Aspect.method(
+            {
+                className: "Service",
+                memberName: "other",
+                predicate: () => true,
+            },
+            { beforeCall: () => {} },
+        );
+
+        // Act --------------
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Assert --------------
+        expect(wrapped).toBe(instance);
+    });
+
+    test("a combined selector does not wrap when the predicate disagrees", () => {
+        // Arrange --------------
+        class Service {
+            run() {}
+        }
+        var instance = new Service();
+        var aspect = Aspect.method(
+            {
+                className: "Service",
+                memberName: "run",
+                predicate: () => false,
+            },
+            { beforeCall: () => {} },
+        );
+
+        // Act --------------
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Assert --------------
+        expect(wrapped).toBe(instance);
+    });
+
+    test("a wrapped method calling another wrapped method via this re-enters the traps in order", () => {
+        // Arrange --------------
+        var calls = [];
+        var instance = {
+            outer() {
+                calls.push("outer-body");
+                this.inner();
+            },
+            inner() {
+                calls.push("inner-body");
+            },
+        };
+        var aspect = Aspect.method(
+            {},
+            {
+                beforeCall: (meta) => calls.push("before:" + meta.methodRef.name),
+            },
+        );
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        wrapped.outer();
+
+        // Assert --------------
+        expect(calls).toEqual([
+            "before:outer",
+            "outer-body",
+            "before:inner",
+            "inner-body",
+        ]);
+    });
+});
+
 describe("withAnnotations", () => {
     test("the predicate is truthy when every listed annotation is present on the member", () => {
         // Arrange --------------
