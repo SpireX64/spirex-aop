@@ -26,6 +26,10 @@ export declare function defineAnnotation<Args extends any[]>(
  * `memberName` is given, or to the target itself (memberless) when omitted.
  * Class annotations are stored on the constructor and inherited by subclass
  * instances. A lone annotation is normalized to a one-element array.
+ * An empty array is a legitimate no-op.
+ * @throws {TypeError} When the target is `null`/`undefined`, when
+ * `annotations` is `null`/`undefined` (after lone-annotation normalization),
+ * or when `memberName` is given but the member does not exist on the target.
  */
 export declare function annotate(
     annotations: TAnnotation | readonly TAnnotation[],
