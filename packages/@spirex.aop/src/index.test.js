@@ -465,6 +465,81 @@ describe("Aspect.apply lifecycle and introspection", () => {
     });
 });
 
+describe("Aspect.unwrap", () => {
+    test("returns the raw target of a wrapped proxy", () => {
+        // Arrange --------------
+        var instance = { foo() {} };
+        var aspect = Aspect.method(
+            { memberName: "foo" },
+            { beforeCall: () => {} },
+        );
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        var target = Aspect.unwrap(wrapped);
+
+        // Assert --------------
+        expect(target).toBe(instance);
+    });
+
+    test("the proxy stays alive and functional after unwrap", () => {
+        // Arrange --------------
+        var calls = [];
+        var instance = {
+            foo() {
+                return "original";
+            },
+        };
+        var aspect = Aspect.method(
+            { memberName: "foo" },
+            { beforeCall: () => calls.push("before") },
+        );
+        var wrapped = Aspect.apply(instance, [aspect]);
+
+        // Act --------------
+        Aspect.unwrap(wrapped);
+        var result = wrapped.foo();
+
+        // Assert --------------
+        expect(Aspect.isWrapped(wrapped)).is.true;
+        expect(result).toBe("original");
+        expect(calls).toEqual(["before"]);
+    });
+
+    test("throws TypeError on a non-wrapped plain object", () => {
+        // Arrange --------------
+        var instance = { foo() {} };
+
+        // Act --------------
+        var act = () => Aspect.unwrap(instance);
+
+        // Assert --------------
+        expect(act).toThrow(TypeError);
+    });
+
+    test("throws TypeError on null", () => {
+        // Arrange --------------
+        var instance = null;
+
+        // Act --------------
+        var act = () => Aspect.unwrap(instance);
+
+        // Assert --------------
+        expect(act).toThrow(TypeError);
+    });
+
+    test("throws TypeError on a primitive", () => {
+        // Arrange --------------
+        var instance = 42;
+
+        // Act --------------
+        var act = () => Aspect.unwrap(instance);
+
+        // Assert --------------
+        expect(act).toThrow(TypeError);
+    });
+});
+
 describe("Aspect method pipeline", () => {
     test("runs beforeCall hooks in apply-list order", () => {
         // Arrange --------------
