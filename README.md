@@ -32,7 +32,7 @@ The library has **zero runtime dependencies**.
 
 It relies on the following built-in JavaScript features: `Proxy`, `Reflect`, `Promise`.
 
-These APIs require a modern JavaScript runtime with native support — `Proxy` cannot be polyfilled — which limits the range of supported environments.
+The library requires an ES2019+ runtime: the built-in APIs `Proxy`/`Reflect`/`Promise` date to ES2015, but the shipped bundles use newer syntax — `Proxy` cannot be polyfilled, which limits the range of supported environments.
 
 ### Module formats
 The package supports multiple module systems out of the box:
