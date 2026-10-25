@@ -27,11 +27,12 @@ var $target = Symbol(); // unwrap back-reference
 // #region Aspects
 /** Builds an aspect factory producing frozen aspects tagged by type. */
 var factoryAspect = (aspectType) => (selector, definition) =>
-    readOnly({
-        ...definition,
-        $aspect: aspectType,
-        [$selector]: selector,
-    });
+    readOnly(
+        Object.assign({}, definition, {
+            $aspect: aspectType,
+            [$selector]: selector,
+        }),
+    );
 // #endregion Aspects
 
 // #region Matching
