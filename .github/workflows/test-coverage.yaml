@@ -1,0 +1,95 @@
+name: "Test & Coverage"
+
+on:
+    push:
+        branches:
+            - main
+
+jobs:
+    changes:
+        runs-on: ubuntu-latest
+        outputs:
+            packages: ${{ steps.matrix.outputs.packages }}
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - uses: dorny/paths-filter@v4
+              id: filter
+              with:
+                  # Do not use `**` with `!packages/**`: paths-filter OR-matches rules, so `**` matches everything.
+                  filters: |
+                      shared:
+                        - '/package.json'
+                        - '/pnpm-lock.yaml'
+                        - '.github/**'
+                        - 'tools/**'
+                        - '/eslint.config.mjs'
+                        - '/.prettierrc.json'
+                        - '/README.md'
+                      aop:
+                        - 'packages/@spirex.aop/**'
+
+            - id: matrix
+              env:
+                  SHARED: ${{ steps.filter.outputs.shared }}
+                  CHANGES: ${{ steps.filter.outputs.changes }}
+              run: |
+                  ALL='["aop"]'
+                  if [ "$SHARED" = "true" ]; then
+                    echo "packages=$ALL" >> "$GITHUB_OUTPUT"
+                    exit 0
+                  fi
+                  FILTERED=$(echo "$CHANGES" | jq -c 'map(select(. == "aop"))')
+                  COUNT=$(echo "$FILTERED" | jq 'length')
+                  if [ "$COUNT" -eq 0 ]; then
+                    echo "packages=$ALL" >> "$GITHUB_OUTPUT"
+                  else
+                    echo "packages=$FILTERED" >> "$GITHUB_OUTPUT"
+                  fi
+
+    test:
+        needs: changes
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                package: ${{ fromJSON(needs.changes.outputs.packages) }}
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: "Setup pnpm"
+              uses: pnpm/action-setup@v4
+
+            - name: "Setup Node.JS"
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "22.22"
+                  cache: "pnpm"
+
+            - name: "Install Dependencies"
+              run: pnpm install --frozen-lockfile
+
+            - name: "Build Package"
+              run: pnpm --filter @spirex/${{ matrix.package }} run build:release
+
+            - name: "Run Tests"
+              run: |
+                  pnpm --filter @spirex/${{ matrix.package }} run test:c
+                  sed -i.bak "s|^SF:|SF:packages/@spirex.${{ matrix.package }}/src/|g" packages/@spirex.${{ matrix.package }}/src/coverage/lcov.info
+
+            - name: "Upload Coverage"
+              if: success()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: coverage-${{ matrix.package }}
+                  path: packages/@spirex.${{ matrix.package }}/src/coverage/lcov.info
+
+            - name: "Upload to Codecov"
+              uses: codecov/codecov-action@v5
+              with:
+                  flags: ${{ matrix.package }}
+                  files: packages/@spirex.${{ matrix.package }}/src/coverage/lcov.info
+                  fail_ci_if_error: true
+                  token: ${{ secrets.CODECOV_TOKEN }}
