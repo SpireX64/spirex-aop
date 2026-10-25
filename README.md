@@ -38,3 +38,42 @@ The library is written in JavaScript and ships with full TypeScript typing suppo
 The only requirement is the JavaScript runtime itself: it must support `Proxy`, `Reflect`, and `Promise`. This limits the range of supported environments — any engine without these standard features cannot run the library.
 
 A standalone annotations module is also available via the `@spirex/aop/annotations` subpath import.
+
+## Example: logging method calls
+
+Here is all it takes to log every call of a method — no base classes, no decorators, no changes to your code:
+
+```js
+import { Aspect } from "@spirex/aop"; // the library entry point
+
+class Calculator {
+    add(a, b) {
+        return a + b;
+    }
+}
+
+// Create a method aspect: an object with hooks that run around matching methods.
+var logCalls = Aspect.method(
+    { memberName: "add" }, // selector: only the `add` method
+    {
+        // `beforeCall` runs before the original method; `meta.params` holds the call arguments.
+        beforeCall: (meta) => {
+            console.log(`-> ${meta.methodRef.name}(${meta.params.join(", ")})`);
+        },
+        // `afterCall` runs after the original method and receives its return value.
+        afterCall: (meta, returnValue) => {
+            console.log(`<- ${meta.methodRef.name} returned ${returnValue}`);
+        },
+    },
+);
+
+var calculator = new Calculator();
+// Apply the aspect: returns a wrapped instance that runs the hooks on every matching call.
+calculator = Aspect.apply(calculator, [logCalls]);
+
+calculator.add(2, 3);
+// -> add(2, 3)
+// <- add returned 5
+```
+
+That is the whole workflow: define an aspect, apply it, and keep calling your object as usual.
