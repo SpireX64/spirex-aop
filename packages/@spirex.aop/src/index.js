@@ -21,6 +21,7 @@ var $selector = Symbol(); // aspect selector
 var $proxy = Symbol(); // proxy identity (isWrapped)
 var $aspects = Symbol(); // applied aspects
 var $matched = Symbol(); // per-member match memo
+var $target = Symbol(); // unwrap back-reference
 // #endregion Symbols
 
 // #region Aspects
@@ -257,6 +258,7 @@ function callMethodPipeline(hooks, thisRef, methodRef, params) {
 
 var aspectProxyHandlers = {
     get(target, key, receiver) {
+        if (key === $target) return target;
         if (typeof key !== "string" || key === "constructor")
             return rGet(target, key, receiver);
 
