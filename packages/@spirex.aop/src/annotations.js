@@ -27,18 +27,22 @@ export function defineAnnotation(name) {
 
 export function annotate(annotations, classOrInstance, memberName) {
     if (annotations != null && !isArr(annotations)) annotations = [annotations];
-    if (
-        classOrInstance == null ||
-        !isArr(annotations) ||
-        annotations.length === 0
-    )
-        return;
+    if (classOrInstance == null)
+        throw new TypeError(
+            "annotate: the target must not be null or undefined",
+        );
+    if (!isArr(annotations))
+        throw new TypeError("annotate: annotations must be an array");
+    if (annotations.length === 0) return;
     if (memberName !== undefined) {
         var memberExists =
             typeof classOrInstance === "function"
                 ? memberName in (classOrInstance.prototype || {})
                 : memberName in classOrInstance;
-        if (!memberExists) return;
+        if (!memberExists)
+            throw new TypeError(
+                "annotate: the member '" + memberName + "' does not exist on the target",
+            );
     }
 
     // The store must be OWN: constructors inherit through the prototype
