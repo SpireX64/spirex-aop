@@ -57,7 +57,7 @@
         }
     },
     "scripts": {
-        "prepack": "yarn build:release && cp ../../README.md ./README.md && cp ../../LICENSE ./LICENSE",
+        "prepack": "pnpm build:release && cp ../../README.md ./README.md && cp ../../LICENSE ./LICENSE",
         "test": "vitest run --config ./vitest.config.mjs",
         "test:c": "vitest run --config ./vitest.config.mjs --coverage",
         "build": "rollup --config --environment NODE_ENV:development",
