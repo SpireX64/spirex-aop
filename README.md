@@ -2,7 +2,7 @@
 
 ![NPM Type Definitions](https://img.shields.io/npm/types/%40spirex%2Faop?style=for-the-badge)
 [![NPM Version](https://img.shields.io/npm/v/%40spirex%2Faop?style=for-the-badge)](https://www.npmjs.com/package/@spirex/aop)
-![GitHub License](https://img.shields.io/github/license/spirex64/spirex-aop?style=for-the-badge)
+[![MIT License](https://img.shields.io/github/license/spirex64/spirex-aop?style=for-the-badge)](LICENSE)
 [![Codecov](https://img.shields.io/codecov/c/github/spirex64/spirex-aop?token=VXQZK5WDSY&flag=aop&style=for-the-badge)](https://codecov.io/github/SpireX64/spirex-aop)
 
 `@spirex/aop` is an aspect-oriented programming (AOP) library that works with any JavaScript/TypeScript project and is very easy to use.
@@ -59,17 +59,17 @@ Although the library is written in pure JavaScript, it is fully typed.
 Here is all it takes to log every call of a method — no base classes, no decorators, no changes to your code:
 
 ```js
-import { Aspect } from "@spirex/aop"; // the library entry point
+import { Aspect } from "@spirex/aop";
 
 class Calculator {
-    add(a, b) {
+    opAdd(a, b) {
         return a + b;
     }
 }
 
 // Create a method aspect: an object with hooks that run around matching methods.
-var logCalls = Aspect.method(
-    { memberName: "add" }, // selector: only the `add` method
+var logOpCalls = Aspect.method(
+    { memberName: /^op/ }, // selector: only operation methods
     {
         // `beforeCall` runs before the original method; `meta.params` holds the call arguments.
         beforeCall: (meta) => {
@@ -82,13 +82,12 @@ var logCalls = Aspect.method(
     },
 );
 
-var calculator = new Calculator();
 // Apply the aspect: returns a wrapped instance that runs the hooks on every matching call.
-calculator = Aspect.apply(calculator, [logCalls]);
+var calculator = Aspect.apply(new Calculator(), [logOpCalls]);
 
-calculator.add(2, 3);
-// -> add(2, 3)
-// <- add returned 5
+calculator.opAdd(2, 3);
+// -> opAdd(2, 3)
+// <- opAdd returned 5
 ```
 
 That is the whole workflow: define an aspect, apply it, and keep calling your object as usual.
@@ -126,5 +125,3 @@ The overwrite updates `meta.params`, so downstream `aroundCall` layers, `afterCa
 
 `@spirex/aop` is released under the MIT License.
 You are free to use, modify, and distribute the library in both personal and commercial projects.
-
-See the [LICENSE](LICENSE) file for the full license text.
