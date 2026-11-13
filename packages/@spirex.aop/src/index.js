@@ -340,17 +340,14 @@ function applyAspects(instance, aspects) {
     }
     if (len(applied) === 0) return instance;
 
+    instance[$aspects] = applied;
+    instance[$matched] = buildMatchMemo(instance, applied);
+
     var existingProxy = instance[$proxy];
-    if (existingProxy) {
-        instance[$aspects] = applied;
-        instance[$matched] = buildMatchMemo(instance, applied);
-        return existingProxy;
-    }
+    if (existingProxy) return existingProxy;
 
     var proxyInstance = new Proxy(instance, aspectProxyHandlers);
     instance[$proxy] = proxyInstance;
-    instance[$aspects] = applied;
-    instance[$matched] = buildMatchMemo(instance, applied);
     return proxyInstance;
 }
 // #endregion Weaving

@@ -24,7 +24,7 @@ describe("annotate / getAnnotations", () => {
     test("stores annotations per member and returns them by instance + member name", () => {
         // Arrange --------------
         var Tag = defineAnnotation("Tag");
-        var instance = { foo() {}, bar() {} };
+        var instance = { foo() { }, bar() { } };
 
         // Act --------------
         annotate([Tag("a"), Tag("b")], instance, "foo");
@@ -36,7 +36,7 @@ describe("annotate / getAnnotations", () => {
     test("normalizes a single annotation to a one-element array", () => {
         // Arrange --------------
         var Deprecated = defineAnnotation("Deprecated");
-        var instance = { doAction() {} };
+        var instance = { doAction() { } };
 
         // Act --------------
         annotate(Deprecated("1.2.3"), instance, "doAction");
@@ -50,7 +50,7 @@ describe("annotate / getAnnotations", () => {
     test("annotations of one member do not leak onto another member", () => {
         // Arrange --------------
         var Tag = defineAnnotation("Tag");
-        var instance = { foo() {}, bar() {} };
+        var instance = { foo() { }, bar() { } };
 
         // Act --------------
         annotate([Tag("only-foo")], instance, "foo");
@@ -63,7 +63,7 @@ describe("annotate / getAnnotations", () => {
     test("annotating the same member twice concatenates the annotations", () => {
         // Arrange --------------
         var Tag = defineAnnotation("Tag");
-        var instance = { foo() {} };
+        var instance = { foo() { } };
 
         // Act --------------
         annotate([Tag("a")], instance, "foo");
@@ -133,7 +133,7 @@ describe("annotate input validation", () => {
     test("throws TypeError on an unknown member name of an instance target", () => {
         // Arrange --------------
         var Tag = defineAnnotation("Tag");
-        var instance = { foo() {} };
+        var instance = { foo() { } };
 
         // Act --------------
         var act = () => annotate([Tag()], instance, "missing");
@@ -146,7 +146,7 @@ describe("annotate input validation", () => {
         // Arrange --------------
         var Tag = defineAnnotation("Tag");
         class Service {
-            foo() {}
+            foo() { }
         }
 
         // Act --------------
@@ -170,7 +170,7 @@ describe("annotate input validation", () => {
     test("throws TypeError when the member is missing on a target function without a prototype", () => {
         // Arrange --------------
         var Tag = defineAnnotation("Tag");
-        var target = () => {};
+        var target = () => { };
 
         // Act --------------
         var act = () => annotate([Tag()], target, "missing");
@@ -185,7 +185,7 @@ describe("annotate / getAnnotations — class, memberless, inheritance", () => {
         // Arrange --------------
         var Route = defineAnnotation("Route");
         class AuthController {
-            login() {}
+            login() { }
         }
 
         // Act --------------
@@ -200,7 +200,7 @@ describe("annotate / getAnnotations — class, memberless, inheritance", () => {
     test("annotates the class itself when memberName is omitted", () => {
         // Arrange --------------
         var Tag = defineAnnotation("Tag");
-        class Service {}
+        class Service { }
 
         // Act --------------
         annotate([Tag("svc")], Service);
@@ -225,10 +225,10 @@ describe("annotate / getAnnotations — class, memberless, inheritance", () => {
         // Arrange --------------
         var Tag = defineAnnotation("Tag");
         class Base {
-            work() {}
+            work() { }
         }
         class Derived extends Base {
-            work() {}
+            work() { }
         }
         annotate([Tag("base"), Tag("shared")], Base, "work");
         annotate([Tag("derived"), Tag("shared")], Derived, "work");
@@ -250,8 +250,8 @@ describe("annotate / getAnnotations — class, memberless, inheritance", () => {
     test("dedups the identical annotation instance appearing twice in the chain", () => {
         // Arrange --------------
         var Tag = defineAnnotation("Tag");
-        class Base {}
-        class Derived extends Base {}
+        class Base { }
+        class Derived extends Base { }
         var tag = Tag("shared");
         annotate([tag], Base);
         var instance = new Derived();
@@ -295,8 +295,8 @@ describe("hasAnnotation", () => {
     test("respects the inheritance merge", () => {
         // Arrange --------------
         var Tag = defineAnnotation("Tag");
-        class Base {}
-        class Derived extends Base {}
+        class Base { }
+        class Derived extends Base { }
         annotate([Tag("base")], Base);
 
         // Act --------------
